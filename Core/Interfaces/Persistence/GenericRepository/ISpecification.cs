@@ -1,7 +1,7 @@
 ﻿using System.Linq.Expressions;
 using Core.Domain.Common;
 
-namespace Application.Interface.Persistence
+namespace Core.Interfaces.Persistence.GenericRepository
 {
   public interface ISpecification<TEntity> where TEntity : Entity
   {

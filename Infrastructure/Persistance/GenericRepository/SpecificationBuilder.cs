@@ -1,10 +1,10 @@
 ﻿using System.Linq.Expressions;
-using Application.RepositoryInterfaces;
 using Core.Domain.Common;
+using Core.Interfaces.Persistence.GenericRepository;
 
-namespace Infrastructure.GenericRepository
+namespace Infrastructure.Persistance.GenericRepository
 {
-  public class SpecificationBuilder<TEntity> : ISpecificationBuilder<TEntity> where TEntity : Entity
+  internal class SpecificationBuilder<TEntity> : ISpecificationBuilder<TEntity> where TEntity : Entity
   {
     ISpecification<TEntity> _specification = new Specification<TEntity>();
     public SpecificationBuilder(Expression<Func<TEntity, bool>> criteria, bool tracking = false)

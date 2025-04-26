@@ -1,6 +1,6 @@
 ﻿using Core.Domain.Common;
 
-namespace Application.Interface.Persistence
+namespace Core.Interfaces.Persistence.GenericRepository
 {
   public interface ISpecificationBuilder<TEntity> where TEntity : Entity
   {

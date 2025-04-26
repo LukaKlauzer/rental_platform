@@ -1,8 +1,8 @@
 ﻿using System.Linq.Expressions;
-using Application.RepositoryInterfaces;
 using Core.Domain.Common;
+using Core.Interfaces.Persistence.GenericRepository;
 
-namespace Infrastructure.GenericRepository
+namespace Infrastructure.Persistance.GenericRepository
 {
   internal class Specification<TEntity> : ISpecification<TEntity> where TEntity : Entity
   {

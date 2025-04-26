@@ -1,8 +1,8 @@
-﻿using Application.RepositoryInterfaces;
-using Core.Domain.Common;
+﻿using Core.Domain.Common;
+using Core.Interfaces.Persistence.GenericRepository;
 using Microsoft.EntityFrameworkCore;
 
-namespace Infrastructure.GenericRepository
+namespace Infrastructure.Persistance.GenericRepository
 {
   internal static class SpecificationEvaluator<TEntity> where TEntity : Entity
   {

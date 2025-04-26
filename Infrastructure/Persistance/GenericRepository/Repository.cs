@@ -1,10 +1,10 @@
-﻿using Application.Interface.Persistence;
-using Core.Domain.Common;
+﻿using Core.Domain.Common;
+using Core.Interfaces.Persistence.GenericRepository;
 using Microsoft.EntityFrameworkCore;
 
-namespace Infrastructure.GenericRepository
+namespace Infrastructure.Persistance.GenericRepository
 {
-  public class Repository<TEntity> : IRepository<TEntity> where TEntity : Entity
+  internal class Repository<TEntity> : IRepository<TEntity> where TEntity : Entity
   {
     private readonly ApplicationDbContext _context;
     private readonly DbSet<TEntity> _set;
