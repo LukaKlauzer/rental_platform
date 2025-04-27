@@ -1,6 +1,14 @@
-﻿namespace Core.Interfaces.Persistence.SpecificRepository
+﻿using Core.Domain.Entities;
+using Core.Result;
+
+namespace Core.Interfaces.Persistence.SpecificRepository
 {
-  public class IVehicleRepository
+  public interface IVehicleRepository
   {
+    public Task<Result<Vehicle>> Create(Vehicle vehicle, CancellationToken cancellationToken = default);
+    public Task<Result<List<Vehicle>>> GetAll(CancellationToken cancellationToken = default);
+    public Task<Result<Vehicle>> GetById(string vin, CancellationToken cancellationToken = default);
+    public Task<Result<Vehicle>> GetByVin(string vin, CancellationToken cancellationToken = default);
+    public Task<Result<IEnumerable<Vehicle>>> GetByVins(List<string> vins, CancellationToken cancellationToken = default);
   }
 }
