@@ -14,8 +14,8 @@ namespace Core.Interfaces.Persistence.GenericRepository
     Task<int> GetCountAsync(CancellationToken cancellationToken = default);
     Task<int> GetCountAsync(ISpecificationBuilder<TEntity> specificationBuilder, CancellationToken cancellationToken = default);
     Task<TEntity?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
-    Task AddOrUpdateAsync(TEntity entity, CancellationToken cancellationToken = default);
-    Task AddAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default);
-    Task DeleteAsync(Guid id);
+    Task<TEntity> AddOrUpdateAsync(TEntity entity, CancellationToken cancellationToken = default);
+    Task<IEnumerable<TEntity>> AddAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default);
+    Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default);
   }
 }
