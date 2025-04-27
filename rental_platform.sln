@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.12.35527.113 d17.12
+VisualStudioVersion = 17.12.35527.113
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "rental_platform", "rental_platform\rental_platform.csproj", "{99DCDEBC-E9D0-4644-9FF8-4710C37EC84E}"
 EndProject
@@ -10,6 +10,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Infrastructure", "Infrastructure\Infrastructure.csproj", "{666B2561-8B57-406A-9EC0-1EA00E52CF4D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Application", "Application\Application.csproj", "{B2562AEB-F542-4D9D-9CA2-6DFEFE9EC7A0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Seeder", "Seeder\Seeder.csproj", "{56C09B72-E9BF-4B69-93DC-2354CEE9F26B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{B2562AEB-F542-4D9D-9CA2-6DFEFE9EC7A0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B2562AEB-F542-4D9D-9CA2-6DFEFE9EC7A0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B2562AEB-F542-4D9D-9CA2-6DFEFE9EC7A0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{56C09B72-E9BF-4B69-93DC-2354CEE9F26B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{56C09B72-E9BF-4B69-93DC-2354CEE9F26B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{56C09B72-E9BF-4B69-93DC-2354CEE9F26B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{56C09B72-E9BF-4B69-93DC-2354CEE9F26B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
