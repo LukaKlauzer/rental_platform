@@ -1,4 +1,5 @@
-﻿using Core.Domain.Common;
+﻿using System.Threading;
+using Core.Domain.Common;
 using Core.Interfaces.Persistence.GenericRepository;
 using Microsoft.EntityFrameworkCore;
 
@@ -46,7 +47,7 @@ namespace Infrastructure.Persistance.GenericRepository
     public async Task<TEntity?> GetByIdAsync(int id, CancellationToken cancellationToken = default) =>
       await _set.FindAsync(id, cancellationToken);
 
-    public async Task AddOrUpdateAsync(TEntity entity, CancellationToken cancellationToken = default)
+    public async Task<TEntity> AddOrUpdateAsync(TEntity entity, CancellationToken cancellationToken = default)
     {
       var entry = _context.Entry(entity);
       if (entry.State == EntityState.Detached)
@@ -65,41 +66,27 @@ namespace Infrastructure.Persistance.GenericRepository
         await _set.AddAsync(entity, cancellationToken);
       else
         entry.State = EntityState.Modified;
-
-
-      //await SaveChangesAsync(); => client should handle it
+      await SaveChangesAsync(cancellationToken);
+      return entity;
     }
-    public async Task AddAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<TEntity>> AddAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default)
     {
       await _set.AddRangeAsync(entities, cancellationToken);
-      //await SaveChangesAsync(); client should handle it
-      //await transaction.CommitAsync(); client should handle it
-
+      await SaveChangesAsync();
+      return entities;
     }
 
-    public Task DeleteAsync(Guid id)
+    public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default)
     {
-      var entity = _set.Find(id);
-      if (entity != null)
-        _set.Remove(entity);
-      return Task.CompletedTask;
+      var entity = await GetByIdAsync(id, cancellationToken);
+
+      if (entity == null)
+        return false;
+
+      _set.Remove(entity);
+      var result = await SaveChangesAsync(cancellationToken);
+      return result > 0;
     }
-
-    //private IQueryable<TEntity> ApplySpecificationCount(ISpecification<TEntity> specification)
-    //{
-    //  // Fetch a queryable that includes all expression-based includes
-    //  var queryableResultWithIncludes = specification
-    //      .Includes
-    //      .Aggregate(_set.AsQueryable(), (current, include) => current.Include(include));
-
-    //  // Modify the queryable to include any string-based include statements
-    //  var secondaryResult = specification
-    //      .IncludeStrings
-    //      .Aggregate(queryableResultWithIncludes, (current, include) => current.Include(include));
-
-    //  // Apply the criteria
-    //  return secondaryResult.Where(specification.Criteria);
-    //}
 
     private IQueryable<TEntity> ApplySpecification(ISpecification<TEntity> specification)
     {
