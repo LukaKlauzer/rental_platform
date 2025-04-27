@@ -3,9 +3,11 @@
   public enum ErrorType
   {
     NotFound = 0,
-    InvalidFileName = 1,
-    StorageError = 2,
+    DatabaseWriteError = 1,
+    DatabaseReadError = 2,
     NullReference = 3,
+    ValidationError = 4,
+    MappingError = 5,
 
   }
 
@@ -29,13 +31,18 @@
     public static Error NotFound(string message) =>
       new("NotFound", message, ErrorType.NotFound);
 
-    public static Error InvalidFileName(string message) =>
-      new Error("InvalidFileName", message, ErrorType.InvalidFileName);
+    public static Error DatabaseWriteError(string message) =>
+      new Error("DatabaseWriteError", message, ErrorType.DatabaseWriteError);
 
-    public static Error StorageError(string message) =>
-      new Error("StorageError", message, ErrorType.StorageError);
+    public static Error DatabaseReadError(string message) =>
+      new Error("DatabaseReadError", message, ErrorType.DatabaseReadError);
+
     public static Error NullReferenceError(string message) =>
       new Error("NullReferance", message, ErrorType.NullReference);
+    public static Error ValidationError(string message) =>
+      new Error("ValidationError", message, ErrorType.ValidationError);
+    public static Error MappingError(string message) =>
+      new Error("MappingError", message, ErrorType.MappingError);
 
   }
 }
