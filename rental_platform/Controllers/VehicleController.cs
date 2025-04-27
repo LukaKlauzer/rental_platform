@@ -10,17 +10,17 @@ namespace rental_platform.Controllers
     public VehicleController()
     {
     }
-    
+
     [HttpGet]
     public IActionResult GetAll()
     {
       return Ok();
     }
 
-    [HttpGet]
-    public IActionResult Get([FromQuery] VehicleSearchDTO vehicleSearchDTO)
+    [HttpGet("{id}")]
+    public IActionResult Get(int id)
     {
-      return Ok(vehicleSearchDTO);
+      return Ok();
     }
   }
 }

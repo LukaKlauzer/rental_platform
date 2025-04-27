@@ -23,8 +23,8 @@ namespace rental_platform.Controllers
       return Ok();
     }
 
-    [HttpDelete("{id}")]
-    public IActionResult Delete(int id) 
+    [HttpPut("{id}")]
+    public IActionResult Cancle(int id) 
     {
       return Ok();
     }
@@ -35,8 +35,8 @@ namespace rental_platform.Controllers
       return Ok();
     }
 
-    [HttpGet]
-    public IActionResult Get([FromQuery] RentalSearchDTO rentalSearchDTO)
+    [HttpGet("{id}")]
+    public IActionResult Get(int id)
     {
       return Ok();
     }

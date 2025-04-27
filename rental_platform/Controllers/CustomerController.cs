@@ -33,8 +33,8 @@ namespace rental_platform.Controllers
       return Ok();
     }
 
-    [HttpGet]
-    public IActionResult Get([FromQuery] CustomerSearchDTO customerSearchDTO)
+    [HttpGet("{id}")]
+    public IActionResult Get(int id)
     {
       return Ok();
     }
