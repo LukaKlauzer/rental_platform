@@ -27,9 +27,9 @@ namespace Application.Services
       if (customerToCreate is null)
         return Result<CustomerReturnDTO>.Failure(Error.NullReferenceError("Cusomer can not be null"));
 
-      var newCustomerResoult = await _customerRepository.Create(customerToCreate);
+      var newCustomerResult = await _customerRepository.Create(customerToCreate);
 
-      return newCustomerResoult.Match(
+      return newCustomerResult.Match(
         customer =>
         {
           var returnDto = customer.ToReturnDto();
@@ -52,11 +52,11 @@ namespace Application.Services
     public async Task<Result<CustomerReturnSingleDTO>> GetById(int id)
     {
       // Get customer
-      var customerResoult = await _customerRepository.GetById(id);
-      if (customerResoult.IsFailure)
-        return Result<CustomerReturnSingleDTO>.Failure(customerResoult.Error);
+      var customerResult = await _customerRepository.GetById(id);
+      if (customerResult.IsFailure)
+        return Result<CustomerReturnSingleDTO>.Failure(customerResult.Error);
 
-      var returnDto = customerResoult.Value.ToReturnSingleDto();
+      var returnDto = customerResult.Value.ToReturnSingleDto();
       if (returnDto is null)
         return Result<CustomerReturnSingleDTO>.Failure(Error.NullReferenceError("Customer mapping to DTO failed"));
 
@@ -129,9 +129,9 @@ namespace Application.Services
       if (customer is null)
         return Result<CustomerReturnDTO>.Failure(Error.MappingError("Failed to map DTO to customer entity"));
 
-      var customerResoult = await _customerRepository.Update(customer);
+      var customerResult = await _customerRepository.Update(customer);
 
-      return customerResoult.Match(
+      return customerResult.Match(
         customer =>
         {
           var returnDto = customer.ToReturnDto();

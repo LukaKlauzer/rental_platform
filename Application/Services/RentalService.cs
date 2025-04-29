@@ -31,14 +31,14 @@ namespace Application.Services
         return Result<RentalReturnDTO>.Failure(Error.ValidationError($"Vehicle vin is not valid: {rentalCreateDTO.VehicleId}"));
 
       // Get customer
-      var customerResoult = await _customerRepository.GetById(rentalCreateDTO.CustomerId);
-      if (customerResoult.IsFailure)
-        return Result<RentalReturnDTO>.Failure(customerResoult.Error);
+      var customerResult = await _customerRepository.GetById(rentalCreateDTO.CustomerId);
+      if (customerResult.IsFailure)
+        return Result<RentalReturnDTO>.Failure(customerResult.Error);
 
       // Get vehicle
-      var vehicleResoult = await _vehicleRepository.GetByVin(rentalCreateDTO.VehicleId);
-      if (vehicleResoult.IsFailure)
-        return Result<RentalReturnDTO>.Failure(vehicleResoult.Error);
+      var vehicleResult = await _vehicleRepository.GetByVin(rentalCreateDTO.VehicleId);
+      if (vehicleResult.IsFailure)
+        return Result<RentalReturnDTO>.Failure(vehicleResult.Error);
 
       var overlappingReservation = await IsOverlappingReservation(
         rentalCreateDTO.CustomerId,

@@ -21,9 +21,9 @@ namespace Application.Services
 
     public async Task<Result<List<VehicleReturnDTO>>> GetAll()
     {
-      var allVehiclesResoult = await _vehicleRepository.GetAll();
+      var allVehiclesResult = await _vehicleRepository.GetAll();
 
-      return allVehiclesResoult.Match(
+      return allVehiclesResult.Match(
         vehicles => Result<List<VehicleReturnDTO>>.Success(vehicles.ToListReturnDTO()),
         error => Result<List<VehicleReturnDTO>>.Failure(error));
     }
@@ -38,14 +38,14 @@ namespace Application.Services
       if (returnDto is null)
         return Result<VehicleReturnSingleDTO>.Failure(Error.MappingError("Failed to map vehicle entity to return DTO "));
 
-      var allRentalsResoult = await _rentalRepository.GetByVin(vin);
-      if (allRentalsResoult.IsFailure)
-        return Result<VehicleReturnSingleDTO>.Failure(allRentalsResoult.Error);
+      var allRentalsResult = await _rentalRepository.GetByVin(vin);
+      if (allRentalsResult.IsFailure)
+        return Result<VehicleReturnSingleDTO>.Failure(allRentalsResult.Error);
 
-      if (!allRentalsResoult.Value.Any())
+      if (!allRentalsResult.Value.Any())
         return Result<VehicleReturnSingleDTO>.Success(returnDto);
 
-      var completedRentals = allRentalsResoult.Value.Where(rental =>
+      var completedRentals = allRentalsResult.Value.Where(rental =>
         rental.OdometerEnd.HasValue &&
         rental.BatterySOCEnd.HasValue &&
         rental.RentalStatus == RentalStatus.Ordered).ToList();
