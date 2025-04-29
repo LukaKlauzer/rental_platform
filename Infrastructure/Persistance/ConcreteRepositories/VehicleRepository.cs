@@ -30,6 +30,26 @@ namespace Infrastructure.Persistance.ConcreteRepositories
       }
     }
 
+    public async Task<Result<List<Vehicle>>> CreateBulk(List<Vehicle> vehicles, CancellationToken cancellationToken = default)
+    {
+      if (vehicles is null || !vehicles.Any())
+        return Result<List<Vehicle>>.Success(new List<Vehicle>());
+
+      try
+      {
+        await _vehicleRepository.BeginTransactionAsync(cancellationToken);
+        var savedVehicles = await _vehicleRepository.AddAsync(vehicles, cancellationToken);
+        await _vehicleRepository.CommitTransactionAsync(cancellationToken);
+
+        return Result<List<Vehicle>>.Success(savedVehicles.ToList());
+      }
+      catch (Exception ex)
+      {
+        await _vehicleRepository.RollbackTransactionAsync(cancellationToken);
+        return Result<List<Vehicle>>.Failure(Error.DatabaseWriteError($"Failed to create vehicle records in bulk: {ex.Message}"));
+      }
+    }
+
     public async Task<Result<List<Vehicle>>> GetAll(CancellationToken cancellationToken = default)
     {
       try
