@@ -7,19 +7,23 @@ using Core.Result;
 
 namespace Application.Services
 {
-  internal class RentalService : IRentalService
+  public class RentalService : IRentalService
   {
-    private IRentalRepository _rentalRepository;
-    private ICustomerRepository _customerRepository;
-    private IVehicleRepository _vehicleRepository;
+    private readonly IRentalRepository _rentalRepository;
+    private readonly ICustomerRepository _customerRepository;
+    private readonly IVehicleRepository _vehicleRepository;
+    private readonly ITelemetryRepository _telemetryRepository;
     public RentalService(
       IRentalRepository rentalRepository,
       ICustomerRepository customerRepository,
-      IVehicleRepository vehicleRepository)
+      IVehicleRepository vehicleRepository,
+      ITelemetryRepository telemetryRepository
+      )
     {
       _rentalRepository = rentalRepository;
       _customerRepository = customerRepository;
       _vehicleRepository = vehicleRepository;
+      _telemetryRepository = telemetryRepository;
     }
 
     public async Task<Result<RentalReturnDTO>> CreateReservation(RentalCreateDTO rentalCreateDTO)
@@ -34,6 +38,8 @@ namespace Application.Services
       var customerResult = await _customerRepository.GetById(rentalCreateDTO.CustomerId);
       if (customerResult.IsFailure)
         return Result<RentalReturnDTO>.Failure(customerResult.Error);
+      if (customerResult.Value.IsDeleted == true)
+        return Result<RentalReturnDTO>.Failure(Error.ValidationError("Customer is no longer active or has been deleted."));
 
       // Get vehicle
       var vehicleResult = await _vehicleRepository.GetByVin(rentalCreateDTO.VehicleId);
@@ -48,11 +54,32 @@ namespace Application.Services
       if (overlappingReservation.IsFailure)
         return Result<RentalReturnDTO>.Failure(overlappingReservation.Error);
 
-      // TODO Take snapshots from telemetry
+      var odometerStartResult = await _telemetryRepository.GetMostRecentBefore(rentalCreateDTO.VehicleId, rentalCreateDTO.StartDate, TelemetryType.odometer);
+      if (odometerStartResult.IsFailure)
+        return Result<RentalReturnDTO>.Failure(odometerStartResult.Error);
+
+      var odometerEndResult = await _telemetryRepository.GetEarliestAfter(rentalCreateDTO.VehicleId, rentalCreateDTO.EndDate, TelemetryType.odometer);
+
+      var batterySocStartResult = await _telemetryRepository.GetMostRecentBefore(rentalCreateDTO.VehicleId, rentalCreateDTO.StartDate, TelemetryType.battery_soc);
+      if (batterySocStartResult.IsFailure)
+        return Result<RentalReturnDTO>.Failure(batterySocStartResult.Error);
+
+      var batterySocEndResult = await _telemetryRepository.GetEarliestAfter(rentalCreateDTO.VehicleId, rentalCreateDTO.EndDate, TelemetryType.battery_soc);
 
       var rentalCreate = rentalCreateDTO.ToRental();
       if (rentalCreate is null)
         return Result<RentalReturnDTO>.Failure(Error.MappingError("Failed to map reservation DTO to reservation entity"));
+
+      // Set the mandatory start values
+      rentalCreate.OdometerStart = odometerStartResult.Value.Value;
+      rentalCreate.BatterySOCStart = batterySocStartResult.Value.Value;
+
+      // Set end values if available
+      if (odometerEndResult.IsSuccess)
+        rentalCreate.OdometerEnd = odometerEndResult.Value.Value;
+
+      if (batterySocEndResult.IsSuccess)
+        rentalCreate.BatterySOCEnd = batterySocEndResult.Value.Value;
 
       var newReservation = await _rentalRepository.Create(rentalCreate);
       return newReservation.Match(
@@ -106,7 +133,7 @@ namespace Application.Services
         returnDto.DistanceTraveled = rentalResult.Value.OdometerEnd.Value - rentalResult.Value.OdometerStart;
 
       returnDto.BatterySOCSAtStart = rentalResult.Value.BatterySOCStart;
-      
+
       if (rentalResult.Value.BatterySOCEnd.HasValue)
         returnDto.BatterySOCAtEnd = rentalResult.Value.BatterySOCEnd.Value;
 
@@ -117,45 +144,62 @@ namespace Application.Services
     {
       if (rentalUpdateDTO.Id <= 0)
         return Result<bool>.Failure(Error.ValidationError($"Rental id is not valid: {rentalUpdateDTO.Id}"));
+      if(rentalUpdateDTO.StartDate is null && rentalUpdateDTO.EndDate is null)
+        return Result<bool>.Failure(Error.ValidationError("At least one field must be provided for update"));
 
       var rentalResult = await _rentalRepository.GetById(rentalUpdateDTO.Id);
       if (rentalResult.IsFailure)
         return Result<bool>.Failure(rentalResult.Error);
 
+      if (rentalUpdateDTO.StartDate.HasValue)
+        rentalResult.Value.StartDate = rentalUpdateDTO.StartDate.Value;
+      if (rentalUpdateDTO.EndDate.HasValue)
+        rentalResult.Value.EndDate = rentalUpdateDTO.EndDate.Value;
+
       var overlappingReservation = await IsOverlappingReservation(
         rentalResult.Value.CustomerId,
         rentalResult.Value.VehicleId,
-        rentalUpdateDTO.StartDate,
-        rentalUpdateDTO.EndDate);
+        rentalUpdateDTO.StartDate??rentalResult.Value.StartDate,
+        rentalUpdateDTO.EndDate??rentalResult.Value.EndDate,
+        rentalUpdateDTO.Id
+        );
 
       if (overlappingReservation.IsFailure)
         return Result<bool>.Failure(overlappingReservation.Error);
 
-      var rentalToupdate = rentalUpdateDTO.ToRental();
-      if (rentalToupdate is null)
-        return Result<bool>.Failure(Error.MappingError("Falure while maping rental update DTO torental entity"));
+
+      if (rentalUpdateDTO.StartDate.HasValue)
+        rentalResult.Value.StartDate = rentalUpdateDTO.StartDate.Value;
+      if (rentalUpdateDTO.EndDate.HasValue)
+        rentalResult.Value.EndDate = rentalUpdateDTO.EndDate.Value;
       
-      var updatedRental = await _rentalRepository.Update(rentalToupdate);
+      var updatedRental = await _rentalRepository.Update(rentalResult.Value);
 
       return updatedRental.Match(
-        rental=>Result<bool>.Success(true),
-        error=> Result<bool>.Failure(error));
+        rental => Result<bool>.Success(true),
+        error => Result<bool>.Failure(error));
     }
 
-    private async Task<Result<bool>> IsOverlappingReservation(int customerId, string vehicleId, DateTime startDate, DateTime endDate)
+    private async Task<Result<bool>> IsOverlappingReservation(int customerId, string vehicleId, DateTime startDate, DateTime endDate, int? currentRentalId = null)
     {
-      var customerReservationsInTimeFrameResul = await _rentalRepository.GetByCustomerIdInTimeFrame(customerId, startDate, endDate);
-      if (customerReservationsInTimeFrameResul.IsFailure)
-        return Result<bool>.Failure(customerReservationsInTimeFrameResul.Error);
+      var customerReservationsInTimeFrameResult = await _rentalRepository.GetByCustomerIdInTimeFrame(customerId, startDate, endDate);
+      if (customerReservationsInTimeFrameResult.IsFailure)
+        return Result<bool>.Failure(customerReservationsInTimeFrameResult.Error);
 
-      if (customerReservationsInTimeFrameResul.Value.Any())
+      var overlappingCustomerReservations = customerReservationsInTimeFrameResult.Value
+       .Where(r => currentRentalId == null || r.ID != currentRentalId);
+
+      if (overlappingCustomerReservations.Any())
         return Result<bool>.Failure(Error.ValidationError("Requested reservation overlaps for this user!"));
 
-        var vehicleReservationsInTimeFrameResul = await _rentalRepository.GetByVinInTimeFrame(vehicleId, startDate, endDate);
-      if (vehicleReservationsInTimeFrameResul.IsFailure)
-        return Result<bool>.Failure(vehicleReservationsInTimeFrameResul.Error);
+      var vehicleReservationsInTimeFrameResult = await _rentalRepository.GetByVinInTimeFrame(vehicleId, startDate, endDate);
+      if (vehicleReservationsInTimeFrameResult.IsFailure)
+        return Result<bool>.Failure(vehicleReservationsInTimeFrameResult.Error);
 
-      if(vehicleReservationsInTimeFrameResul.Value.Any())
+      var overlappingVehicleReservations = vehicleReservationsInTimeFrameResult.Value
+         .Where(r => currentRentalId == null || r.ID != currentRentalId);
+
+      if (overlappingVehicleReservations.Any())
         return Result<bool>.Failure(Error.ValidationError("Requested reservation overlaps for this vehicle!"));
 
       return Result<bool>.Success(true);
