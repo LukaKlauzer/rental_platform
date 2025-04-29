@@ -7,5 +7,6 @@ namespace Core.Interfaces.Persistence.SpecificRepository
   {
     Task<Result<Telemetry>> Create(Telemetry telemetry, CancellationToken cancellationToken = default);
     Task<Result<IEnumerable<Telemetry>>> CreateBulk(IEnumerable<Telemetry> telemetries, CancellationToken cancellationToken = default);
+    Task<Result<IEnumerable<Telemetry>>> GetExistingTelemetry(IEnumerable<Telemetry> telemetryToCheck, CancellationToken cancellationToken = default);
   }
 }
