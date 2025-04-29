@@ -16,7 +16,6 @@ namespace Infrastructure.Persistance.ConcreteRepositories
       )
     {
       _telemetryRepository = telemetryRepository;
-
     }
 
     public async Task<Result<Telemetry>> Create(Telemetry telemetry, CancellationToken cancellationToken = default)
@@ -58,9 +57,7 @@ namespace Infrastructure.Persistance.ConcreteRepositories
         return Result<IEnumerable<Telemetry>>.Failure(Error.DatabaseWriteError($"Failed to create telemetry records in bulk: {ex.Message}"));
       }
     }
-    public async Task<Result<IEnumerable<Telemetry>>> GetMissingRecords(
-        IEnumerable<Telemetry> recordsToCheck,
-        CancellationToken cancellationToken = default)
+    public async Task<Result<IEnumerable<Telemetry>>> GetMissingRecords(IEnumerable<Telemetry> recordsToCheck,CancellationToken cancellationToken = default)
     {
       try
       {
@@ -99,6 +96,61 @@ namespace Infrastructure.Persistance.ConcreteRepositories
         return Result<IEnumerable<Telemetry>>.Failure(
             Error.DatabaseReadError($"Error checking for existing telemetry: {ex.Message}"));
       }
+    }
+    public async Task<Result<Telemetry>> GetMostRecentBefore(string vin, DateTime dateTime, TelemetryType telemetryType, CancellationToken cancellationToken = default)
+    {
+      var timestamp = DateTimeToUnixSeconds(dateTime);
+      try
+      {
+        var specification = new SpecificationBuilder<Telemetry>(telemetry =>
+        telemetry.Timestamp <= timestamp &&
+        telemetry.VehicleId == vin &&
+        telemetry.Name == telemetryType);
+
+        var records = await _telemetryRepository.GetAsync(specification, cancellationToken);
+
+        var mostRecentRecord = records
+            .OrderByDescending(t => t.Timestamp)
+            .FirstOrDefault();
+
+        if (mostRecentRecord is not null)
+          return Result<Telemetry>.Success(mostRecentRecord);
+        return Result<Telemetry>.Failure(Error.NotFound($"Teletry for: '{dateTime}' not found"));
+      }
+      catch (Exception ex)
+      {
+        return Result<Telemetry>.Failure(Error.DatabaseReadError($"Unable to retrieve telemetry: {ex.Message}"));
+      }
+    }
+    public async Task<Result<Telemetry>> GetEarliestAfter(string vin, DateTime dateTime, TelemetryType telemetryType, CancellationToken cancellationToken = default)
+    {
+      var timestamp = DateTimeToUnixSeconds(dateTime);
+      try
+      {
+        var specification = new SpecificationBuilder<Telemetry>(telemetry =>
+        telemetry.Timestamp >= timestamp &&
+        telemetry.VehicleId == vin &&
+        telemetry.Name == telemetryType); ;
+
+        var records = await _telemetryRepository.GetAsync(specification, cancellationToken);
+        var earliestRecord = records
+            .OrderBy(t => t.Timestamp)  // Note: OrderBy instead of OrderByDescending
+            .FirstOrDefault();
+
+        if (earliestRecord is not null)
+          return Result<Telemetry>.Success(earliestRecord);
+        return Result<Telemetry>.Failure(Error.NotFound($"Teletry for: '{dateTime}' not found"));
+      }
+      catch (Exception ex)
+      {
+        return Result<Telemetry>.Failure(Error.DatabaseReadError($"Unable to retrieve telemetry: {ex.Message}"));
+      }
+    }
+    public long DateTimeToUnixSeconds(DateTime time) => ((DateTimeOffset)time).ToUnixTimeSeconds();
+    public DateTime UnixSecondsToDateTime(long timestamp, bool local = false)
+    {
+      var offset = DateTimeOffset.FromUnixTimeSeconds(timestamp);
+      return local ? offset.LocalDateTime : offset.UtcDateTime;
     }
   }
 }
