@@ -1,5 +1,7 @@
 using Core.DTOs.Customer;
+using Core.Interfaces.Services;
 using Microsoft.AspNetCore.Mvc;
+using rental_platform.Extentions;
 
 namespace rental_platform.Controllers
 {
@@ -7,36 +9,58 @@ namespace rental_platform.Controllers
   [Route("api/[controller]")]
   public class CustomerController : ControllerBase
   {
-    public CustomerController()
+    private readonly ICustomerService _customerService;
+    public CustomerController(ICustomerService customerService)
     {
+      _customerService = customerService;
     }
     [HttpPost]
-    public IActionResult Create([FromBody] CustomerCreateDTO customerCreateDTO) 
+    public async Task<IActionResult> Create([FromBody] CustomerCreateDTO customerCreateDTO)
     {
-      return Ok();
+      if (!ModelState.IsValid)
+        return BadRequest(ModelState);
+
+      var result = await _customerService.Create(customerCreateDTO);
+
+      if (result.IsSuccess)
+        return CreatedAtAction(nameof(Get), new { id = result.Value.Id }, result.Value);
+
+      return this.ToActionResult(result);
+
     }
 
     [HttpPut]
-    public IActionResult Update([FromBody] CustomerUpdateDTO customerUpdateDTO) 
+    public async Task<IActionResult> Update([FromBody] CustomerUpdateDTO customerUpdateDTO)
     {
-      return Ok();
+      if (!ModelState.IsValid)
+        return BadRequest(ModelState);
+
+      var result = await _customerService.Update(customerUpdateDTO);
+
+      return this.ToActionResult(result);
     }
     [HttpDelete("{id}")]
-    public IActionResult Delete(int id)
+    public async Task<IActionResult> Delete(int id)
     {
-      return Ok();
+      var result = await _customerService.Delete(id);
+      
+      return this.ToActionResult(result);
     }
 
     [HttpGet]
-    public IActionResult GetAll()
+    public async Task<IActionResult> GetAll()
     {
-      return Ok();
+      var result = await _customerService.GetAll();
+
+      return this.ToActionResult(result);
     }
 
     [HttpGet("{id}")]
-    public IActionResult Get(int id)
+    public async Task<IActionResult> Get(int id)
     {
-      return Ok();
+      var result = await _customerService.GetById(id);
+
+      return this.ToActionResult(result);
     }
   }
 }

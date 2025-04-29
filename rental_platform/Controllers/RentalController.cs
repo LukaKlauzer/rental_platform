@@ -1,5 +1,7 @@
 using Core.DTOs.Rental;
+using Core.Interfaces.Services;
 using Microsoft.AspNetCore.Mvc;
+using rental_platform.Extentions;
 
 namespace rental_platform.Controllers
 {
@@ -7,38 +9,59 @@ namespace rental_platform.Controllers
   [Route("api/[controller]")]
   public class RentalController : ControllerBase
   {
-    public RentalController()
+    public readonly IRentalService _rentalService;
+    public RentalController(IRentalService rentalService)
     {
+      _rentalService = rentalService;
     }
 
     [HttpPost]
-    public IActionResult Create([FromBody] RentalCreateDTO rentalCreateDTO) 
+    public async Task<IActionResult> Create([FromBody] RentalCreateDTO rentalCreateDTO)
     {
-      return Ok();
+      if (!ModelState.IsValid)
+        return BadRequest(ModelState);
+
+      var result = await _rentalService.CreateReservation(rentalCreateDTO);
+
+      if (result.IsSuccess)
+        return CreatedAtAction(nameof(Get), new { id = result.Value.Id }, result.Value);
+
+      return this.ToActionResult(result);
     }
 
     [HttpPut]
-    public IActionResult Update([FromBody] RentalUpdateDTO rentalUpdateDTO ) 
+    public async Task<IActionResult> Update([FromBody] RentalUpdateDTO rentalUpdateDTO)
     {
-      return Ok();
+      if (!ModelState.IsValid)
+        return BadRequest(ModelState);
+
+      var result = await _rentalService.UpdateReservation(rentalUpdateDTO);
+
+      return this.ToActionResult(result);
     }
 
     [HttpPut("{id}")]
-    public IActionResult Cancle(int id) 
+    public async Task<IActionResult> Cancle(int id)
     {
-      return Ok();
+      var result = await _rentalService.CancelReservation(id);
+
+      return this.ToActionResult(result);
     }
 
     [HttpGet]
-    public IActionResult GetAll()
+    public async Task<IActionResult> GetAll()
     {
-      return Ok();
+      var result = await _rentalService.GetAll();
+
+      return this.ToActionResult(result);
     }
 
     [HttpGet("{id}")]
-    public IActionResult Get(int id)
+    public async Task<IActionResult> Get(int id)
     {
-      return Ok();
+      var result = await _rentalService.GetById(id);
+
+      return this.ToActionResult(result);
     }
   }
 }

@@ -1,5 +1,7 @@
 using Core.DTOs.Vehicle;
+using Core.Interfaces.Services;
 using Microsoft.AspNetCore.Mvc;
+using rental_platform.Extentions;
 
 namespace rental_platform.Controllers
 {
@@ -7,20 +9,26 @@ namespace rental_platform.Controllers
   [Route("api/[controller]")]
   public class VehicleController : ControllerBase
   {
-    public VehicleController()
+    private readonly IVeachelService _vehicleService;
+    public VehicleController(IVeachelService vehicleService)
     {
+      _vehicleService = vehicleService;
     }
 
     [HttpGet]
-    public IActionResult GetAll()
+    public async Task<IActionResult> GetAll()
     {
-      return Ok();
+      var result = await _vehicleService.GetAll();
+
+      return this.ToActionResult(result);
     }
 
     [HttpGet("{id}")]
-    public IActionResult Get(int id)
+    public async Task<IActionResult> Get(string id)
     {
-      return Ok();
+      var result = await _vehicleService.GetByVin(id);
+
+      return this.ToActionResult(result);
     }
   }
 }
