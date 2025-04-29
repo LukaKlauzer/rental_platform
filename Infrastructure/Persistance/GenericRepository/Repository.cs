@@ -1,5 +1,4 @@
-﻿using System.Threading;
-using Core.Domain.Common;
+﻿using Core.Domain.Common;
 using Core.Interfaces.Persistence.GenericRepository;
 using Microsoft.EntityFrameworkCore;
 
