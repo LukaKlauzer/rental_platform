@@ -1,36 +1,36 @@
 ﻿using System.Net.Http.Json;
 using Core.DTOs.Customer;
 using FluentAssertions;
-using Microsoft.AspNetCore.Mvc.Testing;
-using rental_platform.Controllers;
+using RentalPlatform.Tests.Integration;
 
 namespace RentalPlatform.IntegrationTests
 {
   public class CustomerControllerTests :
-    IClassFixture<WebApplicationFactory<CustomerController>>,
+    IClassFixture<CustomWebApplicationFactory<Program>>,
     IAsyncLifetime
   {
-    private readonly WebApplicationFactory<CustomerController> _webApplicationFactory;
-
+    private readonly CustomWebApplicationFactory<Program> _factory;
+    private readonly HttpClient _httpClient;
     private List<int> _customerIds;
-    public CustomerControllerTests(WebApplicationFactory<CustomerController> webApplicationFactory)
+    public CustomerControllerTests(CustomWebApplicationFactory<Program> factory)
     {
-      _webApplicationFactory = webApplicationFactory;
 
+      _factory = factory; // uses in memory by defoult set to: = new TestWebApplicationFactory<Program>(useInMemoryDatabase: false); in oder to use real db
+      _httpClient = _factory.CreateClient();
       _customerIds = new List<int>();
     }
-
 
 
     [Fact]
     public async Task GivenValidCustomerDto_CreatesCustomer()
     {
+  
       // Arange
-      var httpClient = _webApplicationFactory.CreateClient();
+      
       var customerCreateDto = new CustomerCreateDTO() { Name = "Test user 1" };
 
       // Act
-      var response = await httpClient.PostAsJsonAsync("api/customer", customerCreateDto);
+      var response = await _httpClient.PostAsJsonAsync("api/customer", customerCreateDto);
       var createdCustomer = await response.Content.ReadFromJsonAsync<CustomerReturnDTO>();
 
       // Assert
@@ -42,25 +42,26 @@ namespace RentalPlatform.IntegrationTests
     }
 
     [Fact]
-    public async Task CreateCustomer_RetrieveCustomerById() 
+    public async Task CreateCustomer_RetrieveCustomerById()
     {
+     
       // Arange
-      var httpClient = _webApplicationFactory.CreateClient();
-      var customerCreateDto = new CustomerCreateDTO() { Name = "Test user 2"};
+     
+      var customerCreateDto = new CustomerCreateDTO() { Name = "Test user 2" };
 
       // Act
-      var responce = await httpClient.PostAsJsonAsync("api/customer", customerCreateDto);
+      var responce = await _httpClient.PostAsJsonAsync("api/customer", customerCreateDto);
       var createdCustomer = await responce.Content.ReadFromJsonAsync<CustomerReturnDTO>();
       createdCustomer.Should().NotBeNull();
 
       // Assert
-      var getCustomer = await httpClient.GetAsync($"api/customer/{createdCustomer.Id}");
+      var getCustomer = await _httpClient.GetAsync($"api/customer/{createdCustomer.Id}");
       getCustomer.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
 
       var retreaveCustomer = await getCustomer.Content.ReadFromJsonAsync<CustomerReturnDTO>();
       retreaveCustomer.Should().NotBeNull();
       retreaveCustomer.Name.Should().Be(customerCreateDto.Name);
-      
+
       _customerIds.Add(createdCustomer.Id);
     }
 
@@ -72,9 +73,10 @@ namespace RentalPlatform.IntegrationTests
 
     public async Task DisposeAsync()
     {
-      var httpClient = _webApplicationFactory?.CreateClient();
-      foreach (var id in _customerIds)
-        await httpClient.DeleteAsync($"api/customer/{id}");
+       await Task.CompletedTask;
+      //var httpClient = _factory?.CreateClient();
+      //foreach (var id in _customerIds)
+      //  await httpClient.DeleteAsync($"api/customer/{id}");
 
     }
   }
