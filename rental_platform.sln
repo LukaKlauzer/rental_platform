@@ -13,6 +13,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Application", "Application\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Seeder", "Seeder\Seeder.csproj", "{56C09B72-E9BF-4B69-93DC-2354CEE9F26B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RentalPlatform.Tests.Unit", "RentalPlatform.Tests\RentalPlatform.Tests.Unit.csproj", "{28A7CDED-3849-4A09-A332-3050DAEF597C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RentalPlatform.Tests.Integration", "RentalPlatform.IntegrationTests\RentalPlatform.Tests.Integration.csproj", "{10788D3A-6CF5-4C32-9479-471DA4538D1B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,6 +43,14 @@ Global
 		{56C09B72-E9BF-4B69-93DC-2354CEE9F26B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{56C09B72-E9BF-4B69-93DC-2354CEE9F26B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{56C09B72-E9BF-4B69-93DC-2354CEE9F26B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{28A7CDED-3849-4A09-A332-3050DAEF597C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{28A7CDED-3849-4A09-A332-3050DAEF597C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{28A7CDED-3849-4A09-A332-3050DAEF597C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{28A7CDED-3849-4A09-A332-3050DAEF597C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{10788D3A-6CF5-4C32-9479-471DA4538D1B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{10788D3A-6CF5-4C32-9479-471DA4538D1B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{10788D3A-6CF5-4C32-9479-471DA4538D1B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{10788D3A-6CF5-4C32-9479-471DA4538D1B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
