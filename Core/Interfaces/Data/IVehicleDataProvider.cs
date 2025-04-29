@@ -5,6 +5,6 @@ namespace Core.Interfaces.Data
 {
   public interface IVehicleDataProvider
   {
-    Task<Result<IEnumerable<Telemetry>>> GetVehicleDataAsync(CancellationToken cancellationToken = default);
+    public Task<Result<IEnumerable<Vehicle>>> GetVehicleDataAsync(CancellationToken cancellationToken = default);
   }
 }
