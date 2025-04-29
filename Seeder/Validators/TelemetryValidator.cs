@@ -9,10 +9,14 @@ namespace Seeder.Validators
   {
     private readonly ILogger<TelemetryValidator> _logger;
 
+    private static Dictionary<string, (float Reading, int Timestamp)> _vinOdometerMap = new();
     public TelemetryValidator(ILogger<TelemetryValidator> logger)
     {
       _logger = logger;
     }
+
+    public IEnumerable<Telemetry> FilterValidTelemetry(IEnumerable<Telemetry> telemetries) =>
+      telemetries.Where(IsValid).ToList();
     public bool IsValid(Telemetry telemetry)
     {
       // Check if VIN is missing
@@ -37,7 +41,7 @@ namespace Seeder.Validators
         return false;
       }
 
-      // Additional validation for battery_soc (range 0-100)
+      // Validation for battery_soc (range 0-100)
       if (telemetry.Name == TelemetryType.battery_soc && (telemetry.Value < 0 || telemetry.Value > 100))
       {
         _logger.LogWarning("Battery SOC telemetry record skipped for VIN {VIN}: Value {Value} out of range (0-100)",
@@ -45,20 +49,39 @@ namespace Seeder.Validators
         return false;
       }
 
-      // Additional validation for odometer (non-negative value)
+      // Validation for odometer (non-negative value)
       if (telemetry.Name == TelemetryType.odometer && telemetry.Value < 0)
       {
         _logger.LogWarning("Odometer telemetry record skipped for VIN {VIN}: Negative value {Value}",
             telemetry.VehicleId, telemetry.Value);
         return false;
       }
-
+      if (telemetry.Name == TelemetryType.odometer)
+        if (!IsOdometerValid(telemetry.VehicleId, telemetry.Value, telemetry.Timestamp))
+          return false;
       return true;
     }
 
-    public IEnumerable<Telemetry> FilterValidTelemetry(IEnumerable<Telemetry> telemetries)
+
+    private static bool IsOdometerValid(string vin, float newOdometerReading, int timestamp)
     {
-      return telemetries.Where(IsValid).ToList();
+      if (_vinOdometerMap.TryGetValue(vin, out var lastRecord))
+      {
+        // If the new timestamp is later, the odometer should not decrease
+        if (timestamp > lastRecord.Timestamp && newOdometerReading < lastRecord.Reading)
+          return false; // Suspicious rollback with newer timestamp
+
+        // If the new timestamp is earlier, just check if the reading is consistent
+        if (timestamp < lastRecord.Timestamp && newOdometerReading > lastRecord.Reading)
+          return false; // Suspicious future reading with older timestamp
+      }
+
+      // Only update the map if the timestamp is newer than what we have
+      if (!_vinOdometerMap.ContainsKey(vin) || timestamp >= _vinOdometerMap[vin].Timestamp)
+        _vinOdometerMap[vin] = (newOdometerReading, timestamp);
+
+
+      return true;
     }
   }
 }
