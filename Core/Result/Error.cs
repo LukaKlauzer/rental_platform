@@ -8,6 +8,7 @@
     NullReference = 3,
     ValidationError = 4,
     MappingError = 5,
+    ProcessingCsv = 6,
 
   }
 
@@ -43,6 +44,8 @@
       new Error("ValidationError", message, ErrorType.ValidationError);
     public static Error MappingError(string message) =>
       new Error("MappingError", message, ErrorType.MappingError);
+    public static Error ProcessingCsv(string message) =>
+      new Error("ProcessingCsv", message, ErrorType.ProcessingCsv);
 
   }
 }
