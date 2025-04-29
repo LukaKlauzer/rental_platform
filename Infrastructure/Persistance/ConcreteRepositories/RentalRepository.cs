@@ -82,7 +82,7 @@ namespace Infrastructure.Persistance.ConcreteRepositories
       }
       catch (Exception ex)
       {
-        return Result<IEnumerable<Rental>>.Failure(Error.DatabaseReadError($"Unable to retrieve rentals for customer with id: {customerId}, {ex.Message}"));
+        return Result<IEnumerable<Rental>>.Failure(Error.DatabaseReadError($"Unable to retrieve rentals for customer with id: '{customerId}', {ex.Message}"));
       }
     }
 
@@ -94,11 +94,11 @@ namespace Infrastructure.Persistance.ConcreteRepositories
         var vehicle = await _rentalRepository.GetAsync(specification, cancellationToken);
         if (vehicle is not null)
           return Result<IEnumerable<Rental>>.Success(vehicle);
-        return Result<IEnumerable<Rental>>.Failure(Error.NotFound($"Rental with vehicle vin: {vin} not found"));
+        return Result<IEnumerable<Rental>>.Failure(Error.NotFound($"Rental with vehicle vin: '{vin}' not found"));
       }
       catch (Exception ex)
       {
-        return Result<IEnumerable<Rental>>.Failure(Error.DatabaseReadError($"Error occurred while looking for rental with vehicle id: {vin}, {ex.Message}"));
+        return Result<IEnumerable<Rental>>.Failure(Error.DatabaseReadError($"Error occurred while looking for rental with vehicle id: '{vin}', {ex.Message}"));
       }
     }
 
@@ -118,7 +118,7 @@ namespace Infrastructure.Persistance.ConcreteRepositories
       }
       catch (Exception ex)
       {
-        return Result<IEnumerable<Rental>>.Failure(Error.DatabaseReadError($"Unable to retrieve rentals for customer with id: {customerId}, {ex.Message}"));
+        return Result<IEnumerable<Rental>>.Failure(Error.DatabaseReadError($"Unable to retrieve rentals for customer with id: '{customerId}', {ex.Message}"));
       }
     }
 

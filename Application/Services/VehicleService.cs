@@ -7,7 +7,7 @@ using Core.Result;
 
 namespace Application.Services
 {
-  internal class VehicleService : IVeachelService
+  public class VehicleService : IVeachelService
   {
     private readonly IVehicleRepository _vehicleRepository;
     private readonly IRentalRepository _rentalRepository;
@@ -57,7 +57,7 @@ namespace Application.Services
       var rentalStats = completedRentals.Select(rental =>
       {
         float distance = rental.OdometerEnd!.Value - rental.OdometerStart;
-        int days = (int)Math.Ceiling((rental.EndDate - rental.StartDate).TotalDays);
+        int days = Math.Max(1, (int)Math.Ceiling((rental.EndDate - rental.StartDate).TotalDays));
         float batteryDelta = rental.BatterySOCEnd!.Value - rental.BatterySOCStart;
 
         float distanceCost = distance * vehicleResult.Value.PricePerKmInEuro;
