@@ -6,7 +6,7 @@ using Core.Result;
 
 namespace Application.Services
 {
-  internal class CustomerSevice : ICustomerService
+  public class CustomerSevice : ICustomerService
   {
     private readonly ICustomerRepository _customerRepository;
     private readonly IRentalRepository _rentalRepository;
@@ -23,6 +23,12 @@ namespace Application.Services
 
     public async Task<Result<CustomerReturnDTO>> Create(CustomerCreateDTO customerCreateDTO)
     {
+      if (customerCreateDTO is null)
+        return Result<CustomerReturnDTO>.Failure(Error.NullReferenceError("CustomerCreateDTO cannot be null."));
+
+      if(string.IsNullOrEmpty(customerCreateDTO.Name))
+        return Result<CustomerReturnDTO>.Failure(Error.ValidationError("Customer name can not be empty"));
+
       var customerToCreate = customerCreateDTO.ToCustomer();
       if (customerToCreate is null)
         return Result<CustomerReturnDTO>.Failure(Error.NullReferenceError("Cusomer can not be null"));
@@ -39,7 +45,58 @@ namespace Application.Services
         },
         error => Result<CustomerReturnDTO>.Failure(error));
     }
+    public async Task<Result<CustomerReturnDTO>> Update(CustomerUpdateDTO customerUpdateDTO)
+    {
+      if (customerUpdateDTO is null)
+        return Result<CustomerReturnDTO>.Failure(Error.NullReferenceError("Customer update data cannot be null"));
 
+      if (customerUpdateDTO.Id <= 0)
+        return Result<CustomerReturnDTO>.Failure(Error.ValidationError("Invalid customer ID"));
+
+      var customer = customerUpdateDTO.ToCustomer();
+      if (customer is null)
+        return Result<CustomerReturnDTO>.Failure(Error.MappingError("Failed to map DTO to customer entity"));
+
+      var customerResult = await _customerRepository.Update(customer);
+
+      return customerResult.Match(
+        customer =>
+        {
+          var returnDto = customer.ToReturnDto();
+          if (returnDto is not null)
+            return Result<CustomerReturnDTO>.Success(returnDto);
+          return Result<CustomerReturnDTO>.Failure(Error.MappingError("Failed to map Customer entity to DTO"));
+        },
+        error => Result<CustomerReturnDTO>.Failure(error));
+    }
+    public async Task<Result<bool>> Delete(int id)
+    {
+      // Check if the customer exists
+      var customerResult = await _customerRepository.GetById(id);
+      if (customerResult.IsFailure)
+        return Result<bool>.Failure(customerResult.Error);
+
+      // Check if customer has any rentals
+      var rentalsResult = await _rentalRepository.GetByCustomerId(id);
+      if (rentalsResult.IsFailure)
+        return Result<bool>.Failure(rentalsResult.Error);
+
+      // If customer has rentals, perform soft delete
+      if (rentalsResult.Value.Any())
+      {
+        var softDeleteResult = await _customerRepository.SoftDelete(id);
+        if (softDeleteResult.IsFailure)
+          return Result<bool>.Failure(softDeleteResult.Error);
+
+        return Result<bool>.Success(true);
+      }
+
+      // If no rentals, we can permanently delete customer, not necessarily a good idea... but YOLO
+      var deleteResult = await _customerRepository.Delete(id);
+      return deleteResult;
+
+
+    }
     public async Task<Result<List<CustomerReturnDTO>>> GetAll()
     {
       var allCustomers = await _customerRepository.GetAll();
@@ -74,8 +131,7 @@ namespace Application.Services
       if (vins is null)
         return Result<CustomerReturnSingleDTO>.Success(returnDto);
 
-      var vehiclesResult = await _vehicleRepository.GetByVins(vins)
-        ;
+      var vehiclesResult = await _vehicleRepository.GetByVins(vins);
       if (vehiclesResult.IsFailure)
         return Result<CustomerReturnSingleDTO>.Failure(vehiclesResult.Error);
 
@@ -92,7 +148,7 @@ namespace Application.Services
           return null;
 
         float distance = rental.OdometerEnd!.Value - rental.OdometerStart;
-        int days = (int)Math.Ceiling((rental.EndDate - rental.StartDate).TotalDays);
+        int days = Math.Max(1, (int)Math.Ceiling((rental.EndDate - rental.StartDate).TotalDays));
         float batteryDelta = rental.BatterySOCEnd!.Value - rental.BatterySOCStart;
 
         float distanceCost = distance * vehicle.PricePerKmInEuro;
@@ -117,29 +173,6 @@ namespace Application.Services
       return Result<CustomerReturnSingleDTO>.Success(returnDto);
     }
 
-    public async Task<Result<CustomerReturnDTO>> Update(CustomerUpdateDTO customerUpdateDTO)
-    {
-      if (customerUpdateDTO is null)
-        return Result<CustomerReturnDTO>.Failure(Error.NullReferenceError("Customer update data cannot be null"));
-
-      if (customerUpdateDTO.Id <= 0)
-        return Result<CustomerReturnDTO>.Failure(Error.ValidationError("Invalid customer ID"));
-
-      var customer = customerUpdateDTO.ToCustomer();
-      if (customer is null)
-        return Result<CustomerReturnDTO>.Failure(Error.MappingError("Failed to map DTO to customer entity"));
-
-      var customerResult = await _customerRepository.Update(customer);
-
-      return customerResult.Match(
-        customer =>
-        {
-          var returnDto = customer.ToReturnDto();
-          if (returnDto is not null)
-            return Result<CustomerReturnDTO>.Success(returnDto);
-          return Result<CustomerReturnDTO>.Failure(Error.MappingError("Failed to map Customer entity to DTO"));
-        },
-        error => Result<CustomerReturnDTO>.Failure(error));
-    }
+   
   }
 }

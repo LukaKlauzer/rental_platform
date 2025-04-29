@@ -7,6 +7,7 @@ namespace Core.Interfaces.Services
   {
     public Task<Result<CustomerReturnDTO>> Create(CustomerCreateDTO customerCreateDTO);
     public Task<Result<CustomerReturnDTO>> Update(CustomerUpdateDTO customerUpdateDTO);
+    public Task<Result<bool>> Delete(int id);
     public Task<Result<List<CustomerReturnDTO>>> GetAll();
     public Task<Result<CustomerReturnSingleDTO>> GetById(int id);
   }
