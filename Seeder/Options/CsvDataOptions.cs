@@ -2,7 +2,7 @@
 {
   internal class CsvDataOptions
   {
-    public string VehicleDataFile { get; set; } = string.Empty;
-    public string TelemetryDataFile { get; set; } = string.Empty;
+    public string VehicleDataFilePath { get; set; } = string.Empty;
+    public string TelemetryDataFilePath { get; set; } = string.Empty;
   }
 }
