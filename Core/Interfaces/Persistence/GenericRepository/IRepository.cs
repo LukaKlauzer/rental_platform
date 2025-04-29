@@ -1,4 +1,5 @@
-﻿using Core.Domain.Common;
+﻿using System.Linq.Expressions;
+using Core.Domain.Common;
 
 namespace Core.Interfaces.Persistence.GenericRepository
 {
