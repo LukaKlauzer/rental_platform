@@ -2,6 +2,7 @@
 using Core.Interfaces.Persistence.SpecificRepository;
 using Core.Interfaces.Validation;
 using Infrastructure;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -23,6 +24,9 @@ namespace RentalPlatform.DataSeeder
 
       using var scope = host.Services.CreateScope();
       var services = scope.ServiceProvider;
+      
+      var dbContext = services.GetRequiredService<ApplicationDbContext>();
+      await dbContext.Database.MigrateAsync();
 
       _logger = services.GetRequiredService<ILogger<Program>>();
       _logger.LogInformation("Data seeding process started at {Time}", DateTime.UtcNow);
