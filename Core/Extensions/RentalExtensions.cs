@@ -25,6 +25,7 @@ namespace Core.Extensions
 
       return new RentalReturnDTO()
       {
+        Id = rental.ID,
         StartDate = rental.StartDate,
         EndDate = rental.EndDate,
         RentalStatus = rental.RentalStatus,
@@ -38,6 +39,7 @@ namespace Core.Extensions
 
       return new RentalReturnSingleDTO()
       {
+        Id = rental.ID,
         StartDate = rental.StartDate,
         EndDate = rental.EndDate,
         RentalStatus = rental.RentalStatus,
@@ -57,17 +59,6 @@ namespace Core.Extensions
         VehicleId = r.VehicleId,
         CustomerId = r.CustomerId,
       }).ToList();
-    }
-    public static Rental? ToRental(this RentalUpdateDTO rentalUpdateDTO)
-    {
-      if (rentalUpdateDTO is null) return null;
-
-      return new Rental()
-      {
-        ID = rentalUpdateDTO.Id,
-        StartDate = rentalUpdateDTO.StartDate,
-        EndDate = rentalUpdateDTO.EndDate,
-      };
     }
   }
 }

@@ -11,7 +11,18 @@ namespace Core.Extensions
 
       return new Customer()
       {
+        
         Name = customerCreateDTO.Name
+      };
+    }
+    public static Customer? ToCustomer(this CustomerUpdateDTO customerUpdateDTO)
+    {
+      if (customerUpdateDTO is null) return null;
+
+      return new Customer()
+      {
+        ID = customerUpdateDTO.Id,
+        Name = customerUpdateDTO.Name
       };
     }
     public static CustomerReturnDTO? ToReturnDto(this Customer customer)
@@ -20,7 +31,9 @@ namespace Core.Extensions
 
       return new CustomerReturnDTO()
       {
-        Name = customer.Name
+        Id = customer.ID,
+        Name = customer.Name,
+        IsDeleted = customer.IsDeleted
       };
     }
     public static CustomerReturnSingleDTO? ToReturnSingleDto(this Customer customer)
@@ -29,15 +42,22 @@ namespace Core.Extensions
 
       return new CustomerReturnSingleDTO()
       {
-        Name = customer.Name
+        Id = customer.ID,
+        Name = customer.Name,
+        IsDeleted = customer.IsDeleted
       };
     }
 
     public static List<CustomerReturnDTO> ToListReturnDto(this List<Customer> customers)
     {
       if (customers is null) return new List<CustomerReturnDTO>();
-     return customers.Select(customer => new CustomerReturnDTO() { Name = customer.Name }).ToList();
+      return customers.Select(customer => new CustomerReturnDTO()
+      {
+        Id = customer.ID,
+        Name = customer.Name,
+        IsDeleted = customer.IsDeleted
+      }).ToList();
     }
-    
+
   }
 }
