@@ -19,8 +19,10 @@ namespace Infrastructure
       services.AddDbContext<ApplicationDbContext>(options =>
         options.UseSqlServer(
           config.GetConnectionString("DefaultConnection"),
-          b => b.MigrationsAssembly("Web.Api")));
+          b => b.MigrationsAssembly("Infrastructure")
+          ));
 
+      services.AddScoped<IRepository<Telemetry>, Repository<Telemetry>>();
       services.AddScoped<IRepository<Customer>, Repository<Customer>>();
       services.AddScoped<IRepository<Vehicle>, Repository<Vehicle>>();
       services.AddScoped<IRepository<Rental>, Repository<Rental>>();
