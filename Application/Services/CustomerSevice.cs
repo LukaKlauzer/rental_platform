@@ -3,19 +3,23 @@ using Core.Extensions;
 using Core.Interfaces.Persistence.SpecificRepository;
 using Core.Interfaces.Services;
 using Core.Result;
+using Microsoft.Extensions.Logging;
 
 namespace Application.Services
 {
   public class CustomerSevice : ICustomerService
   {
+    private readonly ILogger<CustomerSevice> _logger;
     private readonly ICustomerRepository _customerRepository;
     private readonly IRentalRepository _rentalRepository;
     private readonly IVehicleRepository _vehicleRepository;
     public CustomerSevice(
+      ILogger<CustomerSevice> logger,
       ICustomerRepository customerRepository,
       IRentalRepository rentalRepository,
       IVehicleRepository vehicleRepository)
     {
+      _logger = logger;
       _customerRepository = customerRepository;
       _rentalRepository = rentalRepository;
       _vehicleRepository = vehicleRepository;
@@ -26,8 +30,11 @@ namespace Application.Services
       if (customerCreateDTO is null)
         return Result<CustomerReturnDTO>.Failure(Error.NullReferenceError("CustomerCreateDTO cannot be null."));
 
-      if(string.IsNullOrEmpty(customerCreateDTO.Name))
+      if (string.IsNullOrEmpty(customerCreateDTO.Name))
+      {
+        _logger.LogWarning("Customer creation failed: Customer name was empty or null");
         return Result<CustomerReturnDTO>.Failure(Error.ValidationError("Customer name can not be empty"));
+      }
 
       var customerToCreate = customerCreateDTO.ToCustomer();
       if (customerToCreate is null)
@@ -51,7 +58,15 @@ namespace Application.Services
         return Result<CustomerReturnDTO>.Failure(Error.NullReferenceError("Customer update data cannot be null"));
 
       if (customerUpdateDTO.Id <= 0)
+      {
+        _logger.LogWarning("Customer update failed: Customer Id not valid");
         return Result<CustomerReturnDTO>.Failure(Error.ValidationError("Invalid customer ID"));
+      }
+      if (string.IsNullOrEmpty(customerUpdateDTO.Name))
+      {
+        _logger.LogWarning("Customer update failed: Customer name was null or empty");
+        return Result<CustomerReturnDTO>.Failure(Error.ValidationError("Customer name can not be empty"));
+      }
 
       var customer = customerUpdateDTO.ToCustomer();
       if (customer is null)
@@ -84,6 +99,8 @@ namespace Application.Services
       // If customer has rentals, perform soft delete
       if (rentalsResult.Value.Any())
       {
+        _logger.LogInformation("Performing soft delete for customer {CustomerId} because they have {RentalCount} existing rentals",
+          id, rentalsResult.Value.Count());
         var softDeleteResult = await _customerRepository.SoftDelete(id);
         if (softDeleteResult.IsFailure)
           return Result<bool>.Failure(softDeleteResult.Error);
@@ -93,8 +110,19 @@ namespace Application.Services
 
       // If no rentals, we can permanently delete customer, not necessarily a good idea... but YOLO
       var deleteResult = await _customerRepository.Delete(id);
-      return deleteResult;
 
+      return deleteResult.Match(
+        success =>
+        {
+          _logger.LogInformation("Successfully deleted customer {CustomerId} permanently", id);
+          return Result<bool>.Success(true);
+        },
+        error =>
+        {
+          _logger.LogError("Permanent delete failed for customer {CustomerId}: {ErrorMessage}",
+            id, error.Message);
+        return Result<bool>.Failure(error);
+    });
 
     }
     public async Task<Result<List<CustomerReturnDTO>>> GetAll()
@@ -173,6 +201,6 @@ namespace Application.Services
       return Result<CustomerReturnSingleDTO>.Success(returnDto);
     }
 
-   
+
   }
 }
