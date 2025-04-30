@@ -14,7 +14,6 @@ namespace RentalPlatform.IntegrationTests
     private List<int> _customerIds;
     public CustomerControllerTests(CustomWebApplicationFactory<Program> factory)
     {
-
       _factory = factory; // uses in memory by defoult set to: = new TestWebApplicationFactory<Program>(useInMemoryDatabase: false); in oder to use real db
       _httpClient = _factory.CreateClient();
       _customerIds = new List<int>();
@@ -26,7 +25,6 @@ namespace RentalPlatform.IntegrationTests
     {
   
       // Arange
-      
       var customerCreateDto = new CustomerCreateDTO() { Name = "Test user 1" };
 
       // Act
@@ -46,7 +44,6 @@ namespace RentalPlatform.IntegrationTests
     {
      
       // Arange
-     
       var customerCreateDto = new CustomerCreateDTO() { Name = "Test user 2" };
 
       // Act
@@ -65,7 +62,7 @@ namespace RentalPlatform.IntegrationTests
       _customerIds.Add(createdCustomer.Id);
     }
 
-
+    
     public Task InitializeAsync()
     {
       return Task.CompletedTask;
@@ -74,6 +71,8 @@ namespace RentalPlatform.IntegrationTests
     public async Task DisposeAsync()
     {
        await Task.CompletedTask;
+      // Not necessary when using an in-memory database
+
       //var httpClient = _factory?.CreateClient();
       //foreach (var id in _customerIds)
       //  await httpClient.DeleteAsync($"api/customer/{id}");
