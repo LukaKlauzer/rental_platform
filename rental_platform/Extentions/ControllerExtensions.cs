@@ -27,20 +27,5 @@ namespace rental_platform.Extentions
         _ => controller.StatusCode(500, result.Error.Message)
       };
     }
-
-    /// <summary>
-    /// Converts a Result object to a CreatedAtAction result on success
-    /// </summary>
-    public static IActionResult ToCreatedActionResult<T>(
-        this ControllerBase controller,
-        Result<T> result,
-        string actionName,
-        object routeValues)
-        where T : notnull
-    {
-      return result.IsSuccess
-          ? controller.CreatedAtAction(actionName, routeValues, result.Value)
-          : controller.ToActionResult(result);
-    }
   }
 }
