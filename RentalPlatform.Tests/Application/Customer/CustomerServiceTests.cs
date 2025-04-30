@@ -5,6 +5,8 @@ using Core.Enums;
 using Core.Interfaces.Persistence.SpecificRepository;
 using Core.Interfaces.Services;
 using Core.Result;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 using Moq;
 using CustomerEntity = Core.Domain.Entities.Customer;
 
@@ -19,11 +21,14 @@ namespace RentalPlatform.UnitTests.Application.Customer
 
     public CustomerServiceTests()
     {
+      ILogger<CustomerSevice> logger = NullLogger<CustomerSevice>.Instance;
+
       _mockCustomerRepository = new Mock<ICustomerRepository>();
       _mockRentalRepository = new Mock<IRentalRepository>();
       _mockVehicleRepository = new Mock<IVehicleRepository>();
 
       _customerService = new CustomerSevice(
+          logger,
           _mockCustomerRepository.Object,
           _mockRentalRepository.Object,
           _mockVehicleRepository.Object);
@@ -126,7 +131,7 @@ namespace RentalPlatform.UnitTests.Application.Customer
         new Vehicle
         {
           Vin = vehicle1Vin,
-          Make = "Mazdda",
+          Make = "Mazda",
           Model = "Miata",
           Year = 2019,
           PricePerDayInEuro = 0.5f,
