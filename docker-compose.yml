@@ -1,0 +1,69 @@
+services:
+  # Database Service
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    ports:
+      - "1433:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=Str0ng_Passw0rd!
+    volumes:
+      - mssql-data:/var/opt/mssql
+    networks:
+      - rental-network
+    healthcheck:
+      test: ["CMD", "/bin/bash", "-c", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'Str0ng_Passw0rd!' -Q 'SELECT 1' || echo 'Failed query'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  # API Service
+  api:
+    build:
+      context: .
+      dockerfile: rental_platform/Dockerfile
+    ports:
+      - "8080:8080"
+      #- "8081:8081"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080; #https://+:8081
+      - ConnectionStrings__DefaultConnection=Server=db;Database=RentalPlatform;User=sa;Password=Str0ng_Passw0rd!;TrustServerCertificate=True;
+      - DOTNET_RUNNING_IN_CONTAINER=true
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - rental-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Seeder Service (runs once and exits)
+  seeder:
+    build:
+      context: .
+      dockerfile: Seeder/Dockerfile
+    environment:
+      - DOTNET_RUNNING_IN_CONTAINER=true
+      - ConnectionStrings__DefaultConnection=Server=db;Database=RentalPlatform;User=sa;Password=Str0ng_Passw0rd!;TrustServerCertificate=True;
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - rental-network
+    restart: "no"
+
+networks:
+  rental-network:
+    driver: bridge
+
+volumes:
+  mssql-data:
+    driver: local

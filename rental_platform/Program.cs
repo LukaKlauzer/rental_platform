@@ -9,6 +9,18 @@ builder.Services.AddControllers();
 
 builder.Services.AddInfrastructureServices(builder.Configuration);
 builder.Services.AddApplicationServices();
+builder.Services.AddHealthChecks();
+
+// // Used in Docker when HTTPS is enabled
+//builder.WebHost.ConfigureKestrel(options =>
+//{
+//  options.ListenAnyIP(8080); // HTTP
+//  options.ListenAnyIP(8081, listenOptions =>
+//  {
+//    listenOptions.UseHttps("/app/server.pfx", "Str0ng_Passw0rd!");
+//  }); // HTTPS
+//});
+
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -18,15 +30,24 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
+  await using (var serviceScope = app.Services.CreateAsyncScope())
+  await using (var dbContext = serviceScope.ServiceProvider.GetRequiredService<ApplicationDbContext>())
+  {
+    await dbContext.Database.EnsureCreatedAsync();
+  }
   app.MapOpenApi();
   app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", ""));
+
 }
 
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
 
+app.MapHealthChecks("/health");
+
 app.MapControllers();
+
 
 app.Run();
 
