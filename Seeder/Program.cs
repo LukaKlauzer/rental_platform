@@ -2,6 +2,7 @@
 using Core.Interfaces.Persistence.SpecificRepository;
 using Core.Interfaces.Validation;
 using Infrastructure;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,12 +25,14 @@ namespace RentalPlatform.DataSeeder
 
       using var scope = host.Services.CreateScope();
       var services = scope.ServiceProvider;
-      
-      var dbContext = services.GetRequiredService<ApplicationDbContext>();
-      await dbContext.Database.MigrateAsync();
 
       _logger = services.GetRequiredService<ILogger<Program>>();
       _logger.LogInformation("Data seeding process started at {Time}", DateTime.UtcNow);
+
+
+      var dbContext = services.GetRequiredService<ApplicationDbContext>();
+      //await dbContext.Database.MigrateAsync();
+
 
       var telemetryRepository = services.GetRequiredService<ITelemetryRepository>();
       var vehicleRepository = services.GetRequiredService<IVehicleRepository>();
@@ -41,39 +44,46 @@ namespace RentalPlatform.DataSeeder
       var csvVehicleDataProvider = services.GetRequiredService<IVehicleDataProvider>();
       #endregion DI stuff
 
-      // Process vehicle data
-      _logger.LogInformation("Starting vehicle data import");
-      var csvVehicleDataResult = await csvVehicleDataProvider.GetVehicleDataAsync();
-
-      if (csvVehicleDataResult.IsSuccess)
+      try
       {
-        var vehicleCreateResult = await vehicleRepository.CreateBulk(csvVehicleDataResult.Value.ToList());
+        // Process vehicle data
+        _logger.LogInformation("Starting vehicle data import");
+        var csvVehicleDataResult = await csvVehicleDataProvider.GetVehicleDataAsync();
+        if (csvVehicleDataResult.IsSuccess)
+        {
+          _logger.LogInformation("Retrieved {Count} valid vehicle records from CSV", csvVehicleDataResult.Value.Count());
+          var vehicleCreateResult = await vehicleRepository.CreateBulk(csvVehicleDataResult.Value.ToList());
 
-        if (vehicleCreateResult.IsSuccess)
-          _logger.LogInformation("Successfully saved {Count} vehicle records", vehicleCreateResult.Value.Count());
+          if (vehicleCreateResult.IsSuccess)
+            _logger.LogInformation("Successfully saved {Count} vehicle records", vehicleCreateResult.Value.Count());
+          else
+            _logger.LogError("Failed to save vehicle data: {Error}", vehicleCreateResult.Error.Message);
+        }
         else
-          _logger.LogError("Failed to save vehicle data: {Error}", vehicleCreateResult.Error.Message);
+          _logger.LogError("Failed to retrieve vehicle data: {Error}", csvVehicleDataResult.Error.Message);
+
+        // Process telemetry data
+        _logger.LogInformation("Starting telemetry data import");
+        var csvTelemetryDataResult = await csvTelemetryDataProvider.GetTelemetryDataAsync();
+
+        if (csvTelemetryDataResult.IsSuccess)
+        {
+          _logger.LogInformation("Retrieved {Count} valid telemetry records from CSV", csvTelemetryDataResult.Value.Count());
+          var telemetryCreateResult = await telemetryRepository.CreateBulk(csvTelemetryDataResult.Value);
+
+          if (telemetryCreateResult.IsSuccess)
+            _logger.LogInformation("Successfully saved {Count} telemetry records", telemetryCreateResult.Value.Count());
+          else
+            _logger.LogError("Failed to save telemetry data: {Error}", telemetryCreateResult.Error.Message);
+        }
+        else
+          _logger.LogError("Failed to retrieve telemetry data: {Error}", csvTelemetryDataResult.Error.Message);
+        _logger.LogInformation("Data seeding process completed at {Time}", DateTime.UtcNow);
       }
-      else
-        _logger.LogError("Failed to retrieve vehicle data: {Error}", csvVehicleDataResult.Error.Message);
-
-      // Process telemetry data
-      _logger.LogInformation("Starting telemetry data import");
-      var csvTelemetryDataResult = await csvTelemetryDataProvider.GetTelemetryDataAsync();
-
-      if (csvTelemetryDataResult.IsSuccess)
+      catch (Exception ex)
       {
-        var telemetryCreateResult = await telemetryRepository.CreateBulk(csvTelemetryDataResult.Value);
-
-        if (telemetryCreateResult.IsSuccess)
-          _logger.LogInformation("Successfully saved {Count} telemetry records", telemetryCreateResult.Value.Count());
-        else
-          _logger.LogError("Failed to save telemetry data: {Error}", telemetryCreateResult.Error.Message);
+        _logger.LogError(ex, "Unexpected error during data seeding.");
       }
-      else
-        _logger.LogError("Failed to retrieve telemetry data: {Error}", csvTelemetryDataResult.Error.Message);
-
-      _logger.LogInformation("Data seeding process completed at {Time}", DateTime.UtcNow);
     }
     private static IHostBuilder CreateHostBuilder(string[] args) =>
         Host.CreateDefaultBuilder(args)
@@ -102,5 +112,6 @@ namespace RentalPlatform.DataSeeder
               services.AddTransient<IVehicleDataProvider, CsvVehicleDataProvider>();
 
             });
+
   }
 }

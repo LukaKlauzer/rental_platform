@@ -37,7 +37,7 @@ namespace Seeder.Validators
       if (telemetry.Timestamp <= 0)
       {
         _logger.LogWarning("Telemetry record skipped for VIN {VIN}: Invalid timestamp {Timestamp}",
-            telemetry.VehicleId, telemetry.Timestamp);
+                telemetry.VehicleId, telemetry.Timestamp);
         return false;
       }
 
@@ -45,7 +45,7 @@ namespace Seeder.Validators
       if (telemetry.Name == TelemetryType.battery_soc && (telemetry.Value < 0 || telemetry.Value > 100))
       {
         _logger.LogWarning("Battery SOC telemetry record skipped for VIN {VIN}: Value {Value} out of range (0-100)",
-            telemetry.VehicleId, telemetry.Value);
+                telemetry.VehicleId, telemetry.Value);
         return false;
       }
 
@@ -53,12 +53,16 @@ namespace Seeder.Validators
       if (telemetry.Name == TelemetryType.odometer && telemetry.Value < 0)
       {
         _logger.LogWarning("Odometer telemetry record skipped for VIN {VIN}: Negative value {Value}",
-            telemetry.VehicleId, telemetry.Value);
+                telemetry.VehicleId, telemetry.Value);
         return false;
       }
       if (telemetry.Name == TelemetryType.odometer)
         if (!IsOdometerValid(telemetry.VehicleId, telemetry.Value, telemetry.Timestamp))
+        {
+          _logger.LogWarning("Odometer telemetry record skipped for VIN {VIN}: Failed odometer progression check at timestamp {Timestamp}",
+                  telemetry.VehicleId, telemetry.Timestamp);
           return false;
+        }
       return true;
     }
 
