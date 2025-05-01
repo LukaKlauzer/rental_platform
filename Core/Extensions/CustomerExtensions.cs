@@ -1,5 +1,6 @@
 ﻿using Core.Domain.Entities;
 using Core.DTOs.Customer;
+using Core.Features.Customer.Commands;
 
 namespace Core.Extensions
 {
@@ -58,6 +59,17 @@ namespace Core.Extensions
         IsDeleted = customer.IsDeleted
       }).ToList();
     }
+
+    public static Customer ToCustomer(this CreateCustomerCommand command) => new Customer
+    {
+      Name = command.Name,
+      IsDeleted = false
+    };
+    public static Customer ToCustomer(this UpdateCustomerCommand command) => new Customer
+    {
+      ID = command.Id,
+      Name = command.Name
+    };
 
   }
 }

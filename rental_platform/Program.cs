@@ -14,6 +14,11 @@ builder.Services.AddHealthChecks();
 
 builder.Services.AddSwaggerGenWithAuth();
 
+builder.Services.AddMediatR(configuration =>
+{
+  configuration.RegisterServicesFromAssemblies(typeof(Program).Assembly);
+
+});
 
 // // Used in Docker when HTTPS is enabled
 //builder.WebHost.ConfigureKestrel(options =>

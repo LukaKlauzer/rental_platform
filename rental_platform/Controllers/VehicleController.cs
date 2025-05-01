@@ -1,4 +1,5 @@
-using Core.Interfaces.Services;
+using Core.Features.Vehicle.Queries;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using rental_platform.Extentions;
@@ -10,25 +11,23 @@ namespace rental_platform.Controllers
   [Route("api/[controller]")]
   public class VehicleController : ControllerBase
   {
-    private readonly IVeachelService _vehicleService;
-    public VehicleController(IVeachelService vehicleService)
+    private readonly IMediator _mediator;
+    public VehicleController(IMediator mediator)
     {
-      _vehicleService = vehicleService;
+      _mediator = mediator;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-      var result = await _vehicleService.GetAll();
-
+      var result = await _mediator.Send(new GetAllVehiclesQuery());
       return this.ToActionResult(result);
     }
 
     [HttpGet("{id}")]
     public async Task<IActionResult> Get(string id)
     {
-      var result = await _vehicleService.GetByVin(id);
-
+      var result = await _mediator.Send(new GetByIdVehicleQuery(id));
       return this.ToActionResult(result);
     }
   }

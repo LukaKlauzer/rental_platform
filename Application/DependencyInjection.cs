@@ -1,6 +1,4 @@
-﻿using Application.Services;
-using Core.Interfaces.Services;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 
 namespace Application
 {
@@ -9,10 +7,7 @@ namespace Application
 
     public static IServiceCollection AddApplicationServices(this IServiceCollection services) 
     {
-      services.AddScoped<ICustomerService, CustomerSevice>();
-      services.AddScoped<IRentalService, RentalService>();
-      services.AddScoped<IVeachelService, VehicleService>();
-
+      services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly));
       return services;
     }
 
