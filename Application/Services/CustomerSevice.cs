@@ -1,5 +1,6 @@
 ﻿using Core.DTOs.Customer;
 using Core.Extensions;
+using Core.Interfaces.Authentification;
 using Core.Interfaces.Persistence.SpecificRepository;
 using Core.Interfaces.Services;
 using Core.Result;
@@ -13,16 +14,19 @@ namespace Application.Services
     private readonly ICustomerRepository _customerRepository;
     private readonly IRentalRepository _rentalRepository;
     private readonly IVehicleRepository _vehicleRepository;
+    private readonly IJwtTokenGenerator _jwtTokenGenerator;
     public CustomerSevice(
       ILogger<CustomerSevice> logger,
       ICustomerRepository customerRepository,
       IRentalRepository rentalRepository,
-      IVehicleRepository vehicleRepository)
+      IVehicleRepository vehicleRepository,
+      IJwtTokenGenerator jwtTokenGenerator)
     {
       _logger = logger;
       _customerRepository = customerRepository;
       _rentalRepository = rentalRepository;
       _vehicleRepository = vehicleRepository;
+      _jwtTokenGenerator = jwtTokenGenerator;
     }
 
     public async Task<Result<CustomerReturnDTO>> Create(CustomerCreateDTO customerCreateDTO)
@@ -201,6 +205,23 @@ namespace Application.Services
       return Result<CustomerReturnSingleDTO>.Success(returnDto);
     }
 
+    public async Task<Result<string>> Login(int id)
+    {
+      if (id <= 0)
+      {
+        _logger.LogWarning("Customer update failed: Customer Id not valid");
+        return Result<string>.Failure(Error.ValidationError("Invalid customer ID"));
+      }
+
+      var customerResult = await _customerRepository.GetById(id);
+      if (customerResult.IsFailure)
+        return Result<string>.Failure(customerResult.Error);
+
+      var token = _jwtTokenGenerator.GenerateToken(customerResult.Value.ID, customerResult.Value.Name);
+
+      return Result<string>.Success(token);
+
+    }
 
   }
 }
