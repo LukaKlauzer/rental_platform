@@ -1,3 +1,20 @@
+### Branch Overview
+
+- **master**  
+  Contains the main implementation without API authorization or Mediator.
+
+- **API-auth**  
+  Contains everything from `master`, with the addition of basic authorization.  
+  Authorization works via the `api/customer/login/{id}` endpoint, which returns a token.  
+  While it’s not full authentication, it should be sufficient for testing purposes.  
+  When using Swagger (note: avoid Docker if you want to use Swagger), click the **Authorize** button in the top right corner, paste in the token, and you’ll be able to access the protected endpoints.  
+  Account creation and login work regardless of whether a token is provided.
+
+- **Mediator**  
+  Contains everything from both the `master` and `API-auth` branches, as it was built on top of `API-auth`.
+
+I decided to keep these features on separate branches because adding API authorization would break integration tests, and adding Mediator would break unit tests.
+
 # Rental Platform
 
 ## How to Run the Application
@@ -111,3 +128,5 @@ remove/add services from service pool.
 So I removed every service related to standard database and injected in-memory 
 database. This is particularly useful when running integration tests as part of 
 the pipeline.
+
+
