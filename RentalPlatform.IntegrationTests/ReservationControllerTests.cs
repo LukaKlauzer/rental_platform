@@ -20,7 +20,35 @@ namespace RentalPlatform.Tests.Unit.Application.Reservation
       _factory = factory;
       _httpClient = _factory.CreateClient();
     }
+    [Fact]
+    public async Task CancelReservation_ShouldUpdateRentalStatus()
+    {
+      // Arrange
+      var rentalCreateDto = new RentalCreateDTO
+      {
+        CustomerId = _testData.FirstCustomerId,
+        VehicleId = _testData.VehicleVin,
+        StartDate = new DateTime(2025, 1, 2),
+        EndDate = new DateTime(2025, 1, 3)
+      };
 
+      // Create the rental
+      var createResponse = await _httpClient.PostAsJsonAsync("api/rental", rentalCreateDto);
+      var createdRental = await createResponse.Content.ReadFromJsonAsync<RentalReturnDTO>();
+      createdRental.Should().NotBeNull();
+
+      // Act - Cancel the rental
+      var cancelResponse = await _httpClient.PutAsync($"api/rental/{createdRental!.Id}", null);
+
+      // Assert
+      cancelResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+
+      // Verify the rental status was updated
+      var getResponse = await _httpClient.GetAsync($"api/rental/{createdRental.Id}");
+      var retrievedRental = await getResponse.Content.ReadFromJsonAsync<RentalReturnSingleDTO>();
+      retrievedRental.Should().NotBeNull();
+      retrievedRental!.RentalStatus.Should().Be(RentalStatus.Cancelled);
+    }
     [Fact]
     public async Task CreateReservation_WhenOverlappingExists_ReturnsConflictResult()
     {

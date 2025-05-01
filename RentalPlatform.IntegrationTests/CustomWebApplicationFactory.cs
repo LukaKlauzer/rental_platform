@@ -32,7 +32,7 @@ namespace RentalPlatform.Tests.Integration
         services.AddDbContext<ApplicationDbContext>(options =>
         {
           options.UseInMemoryDatabase(_databaseName);
-          options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+          //options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
         });
 
         // Initialize the database
