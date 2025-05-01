@@ -1,5 +1,6 @@
 using Application;
 using Infrastructure;
+using rental_platform.Extentions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +11,9 @@ builder.Services.AddControllers();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 builder.Services.AddApplicationServices();
 builder.Services.AddHealthChecks();
+
+builder.Services.AddSwaggerGenWithAuth();
+
 
 // // Used in Docker when HTTPS is enabled
 //builder.WebHost.ConfigureKestrel(options =>
@@ -23,7 +27,7 @@ builder.Services.AddHealthChecks();
 
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+//builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
@@ -35,10 +39,17 @@ if (app.Environment.IsDevelopment())
   {
     await dbContext.Database.EnsureCreatedAsync();
   }
-  app.MapOpenApi();
-  app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", ""));
+  app.UseSwagger();
+  app.UseSwaggerUI(options =>
+  {
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "API v1");
+  }); 
+  //app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", ""));
 
 }
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.UseHttpsRedirection();
 
