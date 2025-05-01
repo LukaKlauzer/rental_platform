@@ -1,10 +1,11 @@
-using Core.DTOs.Vehicle;
 using Core.Interfaces.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using rental_platform.Extentions;
 
 namespace rental_platform.Controllers
 {
+  [Authorize]
   [ApiController]
   [Route("api/[controller]")]
   public class VehicleController : ControllerBase

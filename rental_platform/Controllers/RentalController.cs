@@ -1,10 +1,12 @@
 using Core.DTOs.Rental;
 using Core.Interfaces.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using rental_platform.Extentions;
 
 namespace rental_platform.Controllers
 {
+  [Authorize]
   [ApiController]
   [Route("api/[controller]")]
   public class RentalController : ControllerBase
@@ -18,9 +20,6 @@ namespace rental_platform.Controllers
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] RentalCreateDTO rentalCreateDTO)
     {
-      if (!ModelState.IsValid)
-        return BadRequest(ModelState);
-
       var result = await _rentalService.CreateReservation(rentalCreateDTO);
 
       if (result.IsSuccess)
@@ -32,9 +31,6 @@ namespace rental_platform.Controllers
     [HttpPut]
     public async Task<IActionResult> Update([FromBody] RentalUpdateDTO rentalUpdateDTO)
     {
-      if (!ModelState.IsValid)
-        return BadRequest(ModelState);
-
       var result = await _rentalService.UpdateReservation(rentalUpdateDTO);
 
       return this.ToActionResult(result);
