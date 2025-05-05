@@ -130,3 +130,9 @@ database. This is particularly useful when running integration tests as part of
 the pipeline.
 
 
+## Note on Implementation (Updated 05.05.2025 - 7:38)
+
+I would like to clarify where I would implement the logic used in the seeder if the project was not a "demo". As mentioned in section 3, Infrastructure would hold implementation of ITelemetryDataProvider since it falls into the "data gathering category". 
+
+Unlike in my current implementation, ITelemetryValidator & IVehicleValidator would be implemented in the application layer since they would be making business decisions whether to accept the data or not. However, since the seeder is only run once, I decided to implement these interfaces in the seeder itself for simplicity.
+
