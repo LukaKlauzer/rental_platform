@@ -1,4 +1,4 @@
-﻿using Core.Result;
+﻿using Application.Result;
 using Microsoft.AspNetCore.Mvc;
 
 namespace rental_platform.Extentions

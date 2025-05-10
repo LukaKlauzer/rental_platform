@@ -1,4 +1,9 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Application.Interfaces.Authentification;
+using Infrastructure.Authentification;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
 namespace rental_platform.Extentions
@@ -35,6 +40,40 @@ namespace rental_platform.Extentions
         };
         options.AddSecurityRequirement(securityRequierment);
       });
+
+      return services;
+    }
+
+    internal static IServiceCollection AddAuth(
+     this IServiceCollection services,
+     IConfiguration config)
+    {
+      var jwtSettings = new JwtSettings();
+
+      config.Bind(JwtSettings.SectionName, jwtSettings);
+
+      services.Configure<JwtSettings>(config.GetSection(JwtSettings.SectionName));
+      services.AddSingleton(Options.Create(jwtSettings));
+      services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
+
+      services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
+        {
+          options.RequireHttpsMetadata = false;
+          options.TokenValidationParameters = new TokenValidationParameters
+          {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Secret)),
+            ValidIssuer = jwtSettings.Issuer,
+            ValidAudience = jwtSettings.Audience,
+            ClockSkew = TimeSpan.Zero,
+          };
+
+        });
 
       return services;
     }

@@ -13,6 +13,7 @@ builder.Services.AddApplicationServices();
 builder.Services.AddHealthChecks();
 
 builder.Services.AddSwaggerGenWithAuth();
+builder.Services.AddAuth(builder.Configuration);
 
 
 // // Used in Docker when HTTPS is enabled
@@ -61,5 +62,6 @@ app.MapControllers();
 
 
 app.Run();
+
 
 public partial class Program() { }

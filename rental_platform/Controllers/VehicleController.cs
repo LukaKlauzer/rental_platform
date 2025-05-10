@@ -1,4 +1,4 @@
-using Core.Interfaces.Services;
+using Application.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using rental_platform.Extentions;

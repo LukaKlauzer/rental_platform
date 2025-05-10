@@ -1,8 +1,8 @@
-﻿using Core.DTOs.Vehicle;
+﻿using Application.DTOs.Vehicle;
 using Core.Enums;
-using Core.Extensions;
-using Core.Interfaces.Persistence.SpecificRepository;
-using Core.Interfaces.Services;
+using Application.Extensions;
+using Application.Interfaces.Persistence.SpecificRepository;
+using Application.Interfaces.Services;
 using Core.Result;
 
 namespace Application.Services
@@ -19,31 +19,31 @@ namespace Application.Services
       _rentalRepository = rentalRepository;
     }
 
-    public async Task<Result<List<VehicleReturnDTO>>> GetAll()
+    public async Task<Result<List<VehicleReturnDto>>> GetAll()
     {
       var allVehiclesResult = await _vehicleRepository.GetAll();
 
       return allVehiclesResult.Match(
-        vehicles => Result<List<VehicleReturnDTO>>.Success(vehicles.ToListReturnDTO()),
-        error => Result<List<VehicleReturnDTO>>.Failure(error));
+        vehicles => Result<List<VehicleReturnDto>>.Success(vehicles.ToListReturnDTO()),
+        error => Result<List<VehicleReturnDto>>.Failure(error));
     }
 
-    public async Task<Result<VehicleReturnSingleDTO>> GetByVin(string vin)
+    public async Task<Result<VehicleReturnSingleDto>> GetByVin(string vin)
     {
       var vehicleResult = await _vehicleRepository.GetByVin(vin);
       if (vehicleResult.IsFailure)
-        return Result<VehicleReturnSingleDTO>.Failure(vehicleResult.Error);
+        return Result<VehicleReturnSingleDto>.Failure(vehicleResult.Error);
 
       var returnDto = vehicleResult.Value.ToSingleResultDTO();
       if (returnDto is null)
-        return Result<VehicleReturnSingleDTO>.Failure(Error.MappingError("Failed to map vehicle entity to return DTO "));
+        return Result<VehicleReturnSingleDto>.Failure(Error.MappingError("Failed to map vehicle entity to return DTO "));
 
       var allRentalsResult = await _rentalRepository.GetByVin(vin);
       if (allRentalsResult.IsFailure)
-        return Result<VehicleReturnSingleDTO>.Failure(allRentalsResult.Error);
+        return Result<VehicleReturnSingleDto>.Failure(allRentalsResult.Error);
 
       if (!allRentalsResult.Value.Any())
-        return Result<VehicleReturnSingleDTO>.Success(returnDto);
+        return Result<VehicleReturnSingleDto>.Success(returnDto);
 
       var completedRentals = allRentalsResult.Value.Where(rental =>
         rental.OdometerEnd.HasValue &&
@@ -51,7 +51,7 @@ namespace Application.Services
         rental.RentalStatus == RentalStatus.Ordered).ToList();
 
       if (!completedRentals.Any())
-        return Result<VehicleReturnSingleDTO>.Success(returnDto);
+        return Result<VehicleReturnSingleDto>.Success(returnDto);
 
       // Calculate statistics
       var rentalStats = completedRentals.Select(rental =>
@@ -75,7 +75,7 @@ namespace Application.Services
       returnDto.TotalRentalCount = rentalStats.Count;
       returnDto.TotalRentalIncome = rentalStats.Sum(d => d.Income);
 
-      return Result<VehicleReturnSingleDTO>.Success(returnDto);
+      return Result<VehicleReturnSingleDto>.Success(returnDto);
 
     }
   }

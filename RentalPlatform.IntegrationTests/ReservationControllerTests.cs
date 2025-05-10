@@ -24,7 +24,7 @@ namespace RentalPlatform.Tests.Unit.Application.Reservation
     public async Task CancelReservation_ShouldUpdateRentalStatus()
     {
       // Arrange
-      var rentalCreateDto = new RentalCreateDTO
+      var rentalCreateDto = new RentalDTO
       {
         CustomerId = _testData.FirstCustomerId,
         VehicleId = _testData.VehicleVin,
@@ -34,7 +34,7 @@ namespace RentalPlatform.Tests.Unit.Application.Reservation
 
       // Create the rental
       var createResponse = await _httpClient.PostAsJsonAsync("api/rental", rentalCreateDto);
-      var createdRental = await createResponse.Content.ReadFromJsonAsync<RentalReturnDTO>();
+      var createdRental = await createResponse.Content.ReadFromJsonAsync<RentalReturnDto>();
       createdRental.Should().NotBeNull();
 
       // Act - Cancel the rental
@@ -45,21 +45,21 @@ namespace RentalPlatform.Tests.Unit.Application.Reservation
 
       // Verify the rental status was updated
       var getResponse = await _httpClient.GetAsync($"api/rental/{createdRental.Id}");
-      var retrievedRental = await getResponse.Content.ReadFromJsonAsync<RentalReturnSingleDTO>();
+      var retrievedRental = await getResponse.Content.ReadFromJsonAsync<RentalReturnSingleDto>();
       retrievedRental.Should().NotBeNull();
       retrievedRental!.RentalStatus.Should().Be(RentalStatus.Cancelled);
     }
     [Fact]
     public async Task CreateReservation_WhenOverlappingExists_ReturnsConflictResult()
     {
-      var rentalCreateDto = new RentalCreateDTO
+      var rentalCreateDto = new RentalDTO
       {
         CustomerId = _testData.FirstCustomerId,
         VehicleId = _testData.VehicleVin,
         StartDate = DateTime.UtcNow.AddDays(1),
         EndDate = DateTime.UtcNow.AddDays(3)
       };
-      var overlappingRentalCreateDto = new RentalCreateDTO
+      var overlappingRentalCreateDto = new RentalDTO
       {
         CustomerId = _testData.SecondCustomerId,
         VehicleId = _testData.VehicleVin,
@@ -69,7 +69,7 @@ namespace RentalPlatform.Tests.Unit.Application.Reservation
 
       // Create the rental
       var createResponse = await _httpClient.PostAsJsonAsync("api/rental", rentalCreateDto);
-      var createdRental = await createResponse.Content.ReadFromJsonAsync<RentalReturnDTO>();
+      var createdRental = await createResponse.Content.ReadFromJsonAsync<RentalReturnDto>();
       createdRental.Should().NotBeNull();
       createdRental.RentalStatus.Should().Be(RentalStatus.Ordered);
 

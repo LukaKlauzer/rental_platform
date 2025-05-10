@@ -45,6 +45,7 @@ namespace Infrastructure.Persistance.ConcreteRepositories
       {
         await _telemetryRepository.BeginTransactionAsync(cancellationToken);
         var savedTelemetries = await _telemetryRepository.AddAsync(telemetries, cancellationToken);
+        await _telemetryRepository.SaveChangesAsync();
         await _telemetryRepository.CommitTransactionAsync(cancellationToken);
 
 

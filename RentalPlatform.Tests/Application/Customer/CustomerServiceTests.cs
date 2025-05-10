@@ -75,7 +75,7 @@ namespace RentalPlatform.UnitTests.Application.Customer
     public async Task CreateWithNullDto_ShouldReturnError()
     {
       // Arange 
-      CustomerCreateDTO createCustomerDto = null;
+      CustomerCreateDto createCustomerDto = null;
 
       // Act
       var result = await _customerService.Create(createCustomerDto);

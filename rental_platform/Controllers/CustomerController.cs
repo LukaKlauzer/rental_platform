@@ -1,5 +1,5 @@
-using Core.DTOs.Customer;
-using Core.Interfaces.Services;
+using Application.DTOs.Customer;
+using Application.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using rental_platform.Extentions;
@@ -17,7 +17,7 @@ namespace rental_platform.Controllers
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CustomerCreateDTO customerCreateDTO)
+    public async Task<IActionResult> Create([FromBody] CustomerCreateDto customerCreateDTO)
     {
       var result = await _customerService.Create(customerCreateDTO);
 
@@ -34,7 +34,7 @@ namespace rental_platform.Controllers
 
     [Authorize]
     [HttpPut]
-    public async Task<IActionResult> Update([FromBody] CustomerUpdateDTO customerUpdateDTO)
+    public async Task<IActionResult> Update([FromBody] CustomerUpdateDto customerUpdateDTO)
     {
       var result = await _customerService.Update(customerUpdateDTO);
 
