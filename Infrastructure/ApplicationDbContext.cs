@@ -54,6 +54,15 @@ namespace Infrastructure
               .WithMany(r => r.Rentals)
               .HasForeignKey(r=>r.VehicleId)
               .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasIndex(r => r.RentalStatus)
+        .HasDatabaseName("Rentals_RentalStatus");
+        entity.HasIndex(r => new { r.StartDate, r.EndDate })
+        .HasDatabaseName("Rentals_StartDate_EndDate");
+        entity.HasIndex(r => new { r.CustomerId, r.StartDate, r.EndDate, r.RentalStatus })
+        .HasDatabaseName("Rentals_CustomerId_StartDate_EndDate_Status");
+        entity.HasIndex(r => new { r.VehicleId, r.StartDate, r.EndDate, r.RentalStatus })
+        .HasDatabaseName("Rentals_VehicleId_StartDate_EndDate_Status");
       });
 
       modelBuilder.Entity<Telemetry>(entity =>
@@ -68,6 +77,8 @@ namespace Infrastructure
         entity.HasIndex(t => new { t.VehicleId, t.Name, t.Timestamp })
               .IsUnique()
               .HasDatabaseName("Telemetry_VehicleId_Name_Timestamp");
+        entity.HasIndex(t => t.Timestamp)
+        .HasDatabaseName("Telemetries_Timestamp");
       });
     }
 
