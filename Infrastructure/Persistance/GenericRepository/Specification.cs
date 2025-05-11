@@ -1,6 +1,6 @@
 ﻿using System.Linq.Expressions;
 using Core.Domain.Common;
-using Core.Interfaces.Persistence.GenericRepository;
+using Application.Interfaces.Persistence.GenericRepository;
 
 namespace Infrastructure.Persistance.GenericRepository
 {
@@ -40,7 +40,7 @@ namespace Infrastructure.Persistance.GenericRepository
     void ISpecification<TEntity>.ApplyPaging(int take, int skip)
     {
       if (take <= 0) throw new ArgumentException("Take must be greater than zero.", nameof(take));
-      if (skip < 0) throw new ArgumentException("Skip cannot be negative.", nameof(skip));
+      if (skip < 0) throw new ArgumentException("Skip cannot be negativee.", nameof(skip));
 
       Take = take;
       Skip = skip;

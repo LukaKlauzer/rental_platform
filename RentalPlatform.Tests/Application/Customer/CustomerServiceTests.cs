@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging;
 using Moq;
 using CustomerEntity = Core.Domain.Entities.Customer;
+using Core.Interfaces.Authentification;
 
 namespace RentalPlatform.UnitTests.Application.Customer
 {
@@ -17,6 +18,7 @@ namespace RentalPlatform.UnitTests.Application.Customer
     private readonly Mock<ICustomerRepository> _mockCustomerRepository;
     private readonly Mock<IRentalRepository> _mockRentalRepository;
     private readonly Mock<IVehicleRepository> _mockVehicleRepository;
+    private readonly Mock<IJwtTokenGenerator> _mockJwtTokenGenerator;
     private readonly ICustomerService _customerService;
 
     public CustomerServiceTests()
@@ -26,12 +28,14 @@ namespace RentalPlatform.UnitTests.Application.Customer
       _mockCustomerRepository = new Mock<ICustomerRepository>();
       _mockRentalRepository = new Mock<IRentalRepository>();
       _mockVehicleRepository = new Mock<IVehicleRepository>();
+      _mockJwtTokenGenerator = new Mock<IJwtTokenGenerator>();
 
       _customerService = new CustomerSevice(
           logger,
           _mockCustomerRepository.Object,
           _mockRentalRepository.Object,
-          _mockVehicleRepository.Object);
+          _mockVehicleRepository.Object,
+          _mockJwtTokenGenerator.Object);
     }
     [Fact]
     public async Task Create_WithValidData_ShouldReturnSuccess()
@@ -71,7 +75,7 @@ namespace RentalPlatform.UnitTests.Application.Customer
     public async Task CreateWithNullDto_ShouldReturnError()
     {
       // Arange 
-      CustomerCreateDTO createCustomerDto = null;
+      CustomerCreateDto createCustomerDto = null;
 
       // Act
       var result = await _customerService.Create(createCustomerDto);

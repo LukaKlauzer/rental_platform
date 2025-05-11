@@ -1,11 +1,12 @@
-﻿using Core.Domain.Entities;
-using Core.Interfaces.Persistence.GenericRepository;
-using Core.Interfaces.Persistence.SpecificRepository;
+﻿using Application.Interfaces.Persistence.GenericRepository;
+using Application.Interfaces.Persistence.SpecificRepository;
+using Core.Domain.Entities;
 using Infrastructure.Persistance.ConcreteRepositories;
 using Infrastructure.Persistance.GenericRepository;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+
 
 namespace Infrastructure
 {
@@ -13,7 +14,7 @@ namespace Infrastructure
   {
     public static IServiceCollection AddInfrastructureServices(
       this IServiceCollection services,
-      IConfiguration config) 
+      IConfiguration config)
     {
       // DbContext setup
       services.AddDbContext<ApplicationDbContext>(options =>
@@ -21,6 +22,7 @@ namespace Infrastructure
           config.GetConnectionString("DefaultConnection"),
           b => b.MigrationsAssembly("Infrastructure")
           ));
+
 
       services.AddScoped<IRepository<Telemetry>, Repository<Telemetry>>();
       services.AddScoped<IRepository<Customer>, Repository<Customer>>();
@@ -32,7 +34,9 @@ namespace Infrastructure
       services.AddScoped<ICustomerRepository, CustomerRepository>();
       services.AddScoped<IRentalRepository, RentalRepository>();
 
+
       return services;
     }
+
   }
 }

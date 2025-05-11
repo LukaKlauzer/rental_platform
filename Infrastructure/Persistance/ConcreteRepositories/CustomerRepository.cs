@@ -1,6 +1,6 @@
 ﻿using Core.Domain.Entities;
-using Core.Interfaces.Persistence.GenericRepository;
-using Core.Interfaces.Persistence.SpecificRepository;
+using Application.Interfaces.Persistence.GenericRepository;
+using Application.Interfaces.Persistence.SpecificRepository;
 using Core.Result;
 
 namespace Infrastructure.Persistance.ConcreteRepositories
@@ -71,7 +71,7 @@ namespace Infrastructure.Persistance.ConcreteRepositories
           return Result<bool>.Failure(Error.NotFound($"Customer with id {id} not found"));
 
         // Mark as deleted
-        customer.IsDeleted = true;
+        customer.MarkAsDeleted();
 
         await _customerRepository.AddOrUpdateAsync(customer, cancellationToken);
 

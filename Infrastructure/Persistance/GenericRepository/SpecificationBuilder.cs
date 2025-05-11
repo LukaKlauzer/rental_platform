@@ -1,6 +1,6 @@
 ﻿using System.Linq.Expressions;
 using Core.Domain.Common;
-using Core.Interfaces.Persistence.GenericRepository;
+using Application.Interfaces.Persistence.GenericRepository;
 
 namespace Infrastructure.Persistance.GenericRepository
 {

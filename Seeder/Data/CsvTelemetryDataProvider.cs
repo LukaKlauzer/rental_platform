@@ -1,10 +1,11 @@
-﻿using Core.Domain.Entities;
-using Core.Enums;
-using Core.Interfaces.Data;
-using Core.Interfaces.Persistence.SpecificRepository;
+﻿using System.Globalization;
+using System.Text.RegularExpressions;
+using Application.Interfaces.Data;
+using Core.Domain.Entities;
 using Core.Interfaces.Validation;
 using Core.Result;
-using Infrastructure.Persistance.ConcreteRepositories;
+using CsvHelper;
+using CsvHelper.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Seeder.Options;
@@ -15,185 +16,120 @@ namespace Seeder.Data
   {
     private readonly ILogger<CsvTelemetryDataProvider> _logger;
     private readonly ITelemetryValidator _validator;
-    private readonly IVehicleRepository _vehicleRepository;
-    private readonly ITelemetryRepository _telemetryRepository;
     private string _filePath;
 
     public CsvTelemetryDataProvider(
       IOptions<CsvDataOptions> options,
       ILogger<CsvTelemetryDataProvider> logger,
-      ITelemetryValidator validator,
-      IVehicleRepository vehicleRepository,
-      ITelemetryRepository telemetryRepository
+      ITelemetryValidator validator
       )
     {
       _filePath = options.Value.TelemetryDataFilePath;
       _logger = logger;
       _validator = validator;
-      _vehicleRepository = vehicleRepository;
-      _telemetryRepository = telemetryRepository;
     }
+
     public async Task<Result<IEnumerable<Telemetry>>> GetTelemetryDataAsync(CancellationToken cancellationToken = default)
     {
-      var fileValidation = ValidateFile();
-      if (fileValidation.IsFailure)
-        return fileValidation;
-
+      var telemetries = new List<Telemetry>();
+      var totalRows = 0;
+      var skippedRows = 0;
       try
       {
+
 
         using var reader = new StreamReader(_filePath);
+        using var csv = new CsvReader(reader, GetCsvConfiguration());
 
-        var headerResult = await ReadAndValidateHeaderAsync(reader, cancellationToken);
-        if (headerResult.IsFailure)
-          return headerResult;
-
-        var allCsvTelemetryRecords = await ProcessDataRowsAsync(reader, cancellationToken);
-
-        // Retrieve all vehicles to validate if their telemetry records are valid
-        var allExistingVehiclesResult = await _vehicleRepository.GetAll();
-
-        if (allExistingVehiclesResult.IsFailure)
-          return Result<IEnumerable<Telemetry>>.Failure(Error.DatabaseReadError("Failed to retrieve vehicles for telemetry validation: " +
-                                        allExistingVehiclesResult.Error.Message));
-
-        var distinctVins = allExistingVehiclesResult.Value.Select(x => x.Vin).Distinct().ToList();
-        if (distinctVins is null)
-          return Result<IEnumerable<Telemetry>>.Failure(Error.NullReferenceError("No vehicles found in the database. Cannot validate telemetry data."));
-
-        var filteredTelemetry = _validator.FilterValidTelemetry(allCsvTelemetryRecords);
-
-        var missingTelemetry = await _telemetryRepository.GetMissingRecords(filteredTelemetry);
-
-        if (missingTelemetry.IsFailure)
-          return Result<IEnumerable<Telemetry>>.Failure(Error.DatabaseReadError($"Filed while retreaving telemetry onjunction: {missingTelemetry.Error}"));
-
-        return Result<IEnumerable<Telemetry>>.Success(missingTelemetry.Value);
-
-      }
-      catch (Exception ex)
-      {
-        return Result<IEnumerable<Telemetry>>.Failure(Error.ProcessingCsv($"Error occurred while processing telemetry csv file: {ex.Message}"));
-      }
-    }
-
-    private Result<IEnumerable<Telemetry>> ValidateFile()
-    {
-      if (string.IsNullOrEmpty(_filePath))
-        return Result<IEnumerable<Telemetry>>.Failure(
-            Error.ValidationError("Telemetry CSV file path is not configured in application settings."));
-
-      if (!File.Exists(_filePath))
-        return Result<IEnumerable<Telemetry>>.Failure(
-            Error.NotFound($"Telemetry CSV file not found: {_filePath}"));
-
-      return Result<IEnumerable<Telemetry>>.Success(Enumerable.Empty<Telemetry>());
-    }
-
-    private async Task<Result<IEnumerable<Telemetry>>> ReadAndValidateHeaderAsync(StreamReader reader, CancellationToken cancellationToken)
-    {
-      string? headerLine = await reader.ReadLineAsync(cancellationToken);
-      if (headerLine == null)
-        return Result<IEnumerable<Telemetry>>.Success(Enumerable.Empty<Telemetry>());
-
-      // Define the expected headers and their order
-      string[] expectedHeaders = { "vin", "name", "value", "timestamp" };
-      string[] headers = headerLine.Split(',').Select(h => h.Trim().ToLower()).ToArray();
-
-      // Validate header count
-      var headerCountValidation = ValidateHeaderCount(headers, expectedHeaders);
-      if (headerCountValidation.IsFailure)
-        return headerCountValidation;
-
-      // Validate header values and positions
-      var headerOrderValidation = ValidateHeaderOrder(headers, expectedHeaders);
-      if (headerOrderValidation.IsFailure)
-        return headerOrderValidation;
-
-      return Result<IEnumerable<Telemetry>>.Success(Enumerable.Empty<Telemetry>());
-    }
-    private Result<IEnumerable<Telemetry>> ValidateHeaderCount(string[] headers, string[] expectedHeaders)
-    {
-      if (headers.Length != expectedHeaders.Length)
-      {
-        _logger.LogError("CSV file has {ActualCount} columns, but expected {ExpectedCount}",
-            headers.Length, expectedHeaders.Length);
-        return Result<IEnumerable<Telemetry>>.Failure(
-            Error.ValidationError("CSV file has an incorrect number of columns."));
-      }
-
-      return Result<IEnumerable<Telemetry>>.Success(Enumerable.Empty<Telemetry>());
-    }
-
-    private Result<IEnumerable<Telemetry>> ValidateHeaderOrder(string[] headers, string[] expectedHeaders)
-    {
-      for (int i = 0; i < expectedHeaders.Length; i++)
-        if (headers[i] != expectedHeaders[i])
+        if (csv.Configuration.HasHeaderRecord)
         {
-          _logger.LogError("CSV header mismatch at position {Position}. Expected: {Expected}, Found: {Actual}",
-              i, expectedHeaders[i], headers[i]);
-          return Result<IEnumerable<Telemetry>>.Failure(
-              Error.ValidationError($"CSV header format is invalid. Expected '{expectedHeaders[i]}' at position {i}, but found '{headers[i]}'."));
+          await csv.ReadAsync();
+          csv.ReadHeader();
         }
-      return Result<IEnumerable<Telemetry>>.Success(Enumerable.Empty<Telemetry>());
-    }
-
-    private async Task<List<Telemetry>> ProcessDataRowsAsync(StreamReader reader, CancellationToken cancellationToken)
-    {
-      List<Telemetry> telemetryRecords = new List<Telemetry>();
-      string[] expectedHeaders = { "vin", "name", "value", "timestamp" };
-      int rowNumber = 1; // Start at 1 
-      string? line;
-
-      while ((line = await reader.ReadLineAsync(cancellationToken)) != null)
-      {
-        rowNumber++;
-
-        if (string.IsNullOrWhiteSpace(line))
-          continue;
-
-        var telemetry = ParseRow(line, rowNumber, expectedHeaders.Length);
-        if (telemetry != null)
-          telemetryRecords.Add(telemetry);
-
-      }
-      return telemetryRecords;
-    }
-    private Telemetry? ParseRow(string line, int rowNumber, int expectedFieldCount)
-    {
-      string[] fields = line.Split(',').Select(f => f.Trim()).ToArray();
-
-      // Ensure the row has the correct number of fields
-      if (fields.Length != expectedFieldCount)
-      {
-        _logger.LogWarning("Row {RowNumber} has {FieldCount} fields, expected {ExpectedCount}. Skipping.",
-            rowNumber, fields.Length, expectedFieldCount);
-        return null;
-      }
-
-      try
-      {
-        return new Telemetry
+        while (await csv.ReadAsync())
         {
-          VehicleId = fields[0],
-          Name = ParseTelemetryType(fields[1]),
-          Value = float.Parse(fields[2]),
-          Timestamp = int.Parse(fields[3])
-        };
+          totalRows++;
+          try
+          {
+            var record = csv.GetRecord<TelemetryCsvDto>();
+            var telemetryResult = CreateTelemetry(record);
+            if (telemetryResult.IsSuccess)
+              telemetries.Add(telemetryResult.Value);
+            else
+            {
+              skippedRows++;
+              _logger.LogWarning("Failed to create telemetry at {Row}: {Error}",
+                csv.Context.Parser?.Row, telemetryResult.Error.Message);
+            }
+          }
+          catch (Exception ex)
+          {
+            skippedRows++;
+            _logger.LogWarning(ex, "Failed to parse row {Row}: {Message}",
+                csv.Context.Parser?.Row, ex.Message);
+          }
+        }
+        _logger.LogInformation("CSV processing complete. Total rows: {Total}, Valid: {Valid}, Skipped: {Skipped}",
+            totalRows, telemetries.Count, skippedRows);
+
+        // Filter using your validator => not necesery
+        var validTelemetries = _validator.FilterValidTelemetry(telemetries);
+
+        return Result<IEnumerable<Telemetry>>.Success(validTelemetries);
       }
       catch (Exception ex)
       {
-        _logger.LogWarning(ex, "Error parsing row {RowNumber}. Skipping.", rowNumber);
-        return null;
+        _logger.LogError(ex, "Critical error reading telemetry CSV file");
+        return Result<IEnumerable<Telemetry>>.Failure(
+            Error.ProcessingCsv($"Failed to process telemetry CSV: {ex.Message}"));
       }
     }
-    private TelemetryType ParseTelemetryType(string typeString)
+    private Result<Telemetry> CreateTelemetry(TelemetryCsvDto dto)
     {
-      return typeString.ToLower() switch
+      return Telemetry.Create(
+          telemetryType: dto.Name,
+          value: dto.Value,
+          timestamp: dto.Timestamp,
+          vehicleId: dto.VehicleId
+      );
+    }
+
+    private CsvConfiguration GetCsvConfiguration()
+    {
+      return new CsvConfiguration(CultureInfo.InvariantCulture)
       {
-        "odometer" => TelemetryType.odometer,
-        "battery_soc" => TelemetryType.battery_soc,
-        _ => TelemetryType.Unknown
+        TrimOptions = TrimOptions.Trim,
+        HasHeaderRecord = true,
+        HeaderValidated = (args) =>
+        {
+          if (!args.InvalidHeaders.Any())
+            return;
+
+          var invalidHeaders = string.Join(", ", args.InvalidHeaders.ToList());
+
+          _logger.LogWarning("Invalid headers found: {Headers}", invalidHeaders);
+        },
+        MissingFieldFound = (args) =>
+        {
+          if (args.HeaderNames is null)
+            return;
+          var missingField = string.Join(", ", args.HeaderNames);
+
+          _logger.LogWarning("Missing field at row: {Row}, position: {Index}. Expected fields: {Fields}", args.Context.Parser?.Row, args.Index, missingField);
+        },
+        BadDataFound = context =>
+        {
+          _logger.LogWarning("Unable to parse data found at row {Row}: {RawRecord}",
+              context.Context.Parser?.Row, context.RawRecord);
+        },
+        ReadingExceptionOccurred = args =>
+        {
+          _logger.LogError(args.Exception, "CSV reading error at row {Row}",
+              args.Exception.Context?.Parser?.Row);
+
+          // Continue processing (return true) or stop (return false)
+          return true;
+        }
       };
     }
   }

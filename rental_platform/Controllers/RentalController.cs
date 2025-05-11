@@ -1,10 +1,12 @@
-using Core.DTOs.Rental;
-using Core.Interfaces.Services;
+using Application.DTOs.Rental;
+using Application.Interfaces.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using rental_platform.Extentions;
+using rental_platform.Extensions;
 
 namespace rental_platform.Controllers
 {
+  [Authorize]
   [ApiController]
   [Route("api/[controller]")]
   public class RentalController : ControllerBase
@@ -16,11 +18,8 @@ namespace rental_platform.Controllers
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] RentalCreateDTO rentalCreateDTO)
+    public async Task<IActionResult> Create([FromBody] RentalCreateDto rentalCreateDTO)
     {
-      if (!ModelState.IsValid)
-        return BadRequest(ModelState);
-
       var result = await _rentalService.CreateReservation(rentalCreateDTO);
 
       if (result.IsSuccess)
@@ -30,18 +29,15 @@ namespace rental_platform.Controllers
     }
 
     [HttpPut]
-    public async Task<IActionResult> Update([FromBody] RentalUpdateDTO rentalUpdateDTO)
+    public async Task<IActionResult> Update([FromBody] RentalUpdateDto rentalUpdateDTO)
     {
-      if (!ModelState.IsValid)
-        return BadRequest(ModelState);
-
       var result = await _rentalService.UpdateReservation(rentalUpdateDTO);
 
       return this.ToActionResult(result);
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Cancle(int id)
+    public async Task<IActionResult> Cancel(int id)
     {
       var result = await _rentalService.CancelReservation(id);
 

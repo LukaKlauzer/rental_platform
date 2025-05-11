@@ -29,7 +29,7 @@ namespace RentalPlatform.IntegrationTests
 
       // Act
       var response = await _httpClient.PostAsJsonAsync("api/customer", customerCreateDto);
-      var createdCustomer = await response.Content.ReadFromJsonAsync<CustomerReturnDTO>();
+      var createdCustomer = await response.Content.ReadFromJsonAsync<CustomerReturnDto>();
 
       // Assert
       response.StatusCode.Should().Be(System.Net.HttpStatusCode.Created);
@@ -48,14 +48,14 @@ namespace RentalPlatform.IntegrationTests
 
       // Act
       var responce = await _httpClient.PostAsJsonAsync("api/customer", customerCreateDto);
-      var createdCustomer = await responce.Content.ReadFromJsonAsync<CustomerReturnDTO>();
+      var createdCustomer = await responce.Content.ReadFromJsonAsync<CustomerReturnDto>();
       createdCustomer.Should().NotBeNull();
 
       // Assert
       var getCustomer = await _httpClient.GetAsync($"api/customer/{createdCustomer.Id}");
       getCustomer.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
 
-      var retreaveCustomer = await getCustomer.Content.ReadFromJsonAsync<CustomerReturnDTO>();
+      var retreaveCustomer = await getCustomer.Content.ReadFromJsonAsync<CustomerReturnDto>();
       retreaveCustomer.Should().NotBeNull();
       retreaveCustomer.Name.Should().Be(customerCreateDto.Name);
 

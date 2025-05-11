@@ -49,10 +49,10 @@ namespace Seeder.Validators
         return false;
       }
 
-      // Validation for odometer (non-negative value)
+      // Validation for odometer (non-negativee value)
       if (telemetry.Name == TelemetryType.odometer && telemetry.Value < 0)
       {
-        _logger.LogWarning("Odometer telemetry record skipped for VIN {VIN}: Negative value {Value}",
+        _logger.LogWarning("Odometer telemetry record skipped for VIN {VIN}: negativee value {Value}",
                 telemetry.VehicleId, telemetry.Value);
         return false;
       }

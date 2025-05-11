@@ -1,5 +1,5 @@
 ﻿using Core.Domain.Common;
-using Core.Interfaces.Persistence.GenericRepository;
+using Application.Interfaces.Persistence.GenericRepository;
 using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Persistance.GenericRepository
@@ -71,7 +71,7 @@ namespace Infrastructure.Persistance.GenericRepository
     public async Task<IEnumerable<TEntity>> AddAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default)
     {
       await _set.AddRangeAsync(entities, cancellationToken);
-      await SaveChangesAsync();
+      //await SaveChangesAsync();
       return entities;
     }
 

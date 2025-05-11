@@ -1,5 +1,5 @@
 ﻿using Core.Domain.Common;
-using Core.Interfaces.Persistence.GenericRepository;
+using Application.Interfaces.Persistence.GenericRepository;
 using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Persistance.GenericRepository

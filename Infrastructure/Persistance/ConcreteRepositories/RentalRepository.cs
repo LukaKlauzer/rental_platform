@@ -1,7 +1,7 @@
 ﻿using Core.Domain.Entities;
 using Core.Enums;
-using Core.Interfaces.Persistence.GenericRepository;
-using Core.Interfaces.Persistence.SpecificRepository;
+using Application.Interfaces.Persistence.GenericRepository;
+using Application.Interfaces.Persistence.SpecificRepository;
 using Core.Result;
 using Infrastructure.Persistance.GenericRepository;
 
@@ -38,7 +38,7 @@ namespace Infrastructure.Persistance.ConcreteRepositories
       }
       catch (Exception ex)
       {
-        return Result<IEnumerable<Rental>>.Failure(Error.DatabaseReadError($"Failed to retreve Rentals: {ex.Message}"));
+        return Result<IEnumerable<Rental>>.Failure(Error.DatabaseReadError($"Failed to retrieve Rentals: {ex.Message}"));
       }
     }
     public async Task<Result<Rental>> GetById(int id, CancellationToken cancellationToken = default)
@@ -52,7 +52,7 @@ namespace Infrastructure.Persistance.ConcreteRepositories
       }
       catch (Exception ex)
       {
-        return Result<Rental>.Failure(Error.DatabaseReadError($"Faile to retreve rental with id: {id} {ex.Message}"));
+        return Result<Rental>.Failure(Error.DatabaseReadError($"Faile to retrieve rental with id: {id} {ex.Message}"));
       }
     }
 
