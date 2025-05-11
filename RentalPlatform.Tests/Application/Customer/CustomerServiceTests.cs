@@ -1,66 +1,86 @@
-﻿using Application.Services;
-using Core.Domain.Entities;
-using Application.DTOs.Customer;
-using Core.Enums;
+﻿using Application.DTOs.Customer;
+using Application.Interfaces.Authentification;
+using Application.Interfaces.DataValidation;
+using Application.Interfaces.Mapers;
 using Application.Interfaces.Persistence.SpecificRepository;
-using Application.Interfaces.Services;
+using Application.Services;
+using Core.Domain.Entities;
 using Core.Result;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using CustomerEntity = Core.Domain.Entities.Customer;
 
-namespace RentalPlatform.UnitTests.Application.Customer
+namespace RentalPlatform.Tests.Unit.Application.Customer
 {
   public class CustomerServiceTests
   {
     private readonly Mock<ICustomerRepository> _mockCustomerRepository;
     private readonly Mock<IRentalRepository> _mockRentalRepository;
     private readonly Mock<IVehicleRepository> _mockVehicleRepository;
+    private readonly Mock<ICustomerMapper> _mockCustomerMapper;
     private readonly Mock<IJwtTokenGenerator> _mockJwtTokenGenerator;
-    private readonly ICustomerService _customerService;
+    private readonly Mock<ICustomerValidator> _mockCustomerValidator;
+    private readonly CustomerService _customerService;
 
     public CustomerServiceTests()
     {
-      ILogger<CustomerSevice> logger = NullLogger<CustomerSevice>.Instance;
+      ILogger<CustomerService> logger = NullLogger<CustomerService>.Instance;
 
       _mockCustomerRepository = new Mock<ICustomerRepository>();
       _mockRentalRepository = new Mock<IRentalRepository>();
       _mockVehicleRepository = new Mock<IVehicleRepository>();
+      _mockCustomerMapper = new Mock<ICustomerMapper>();
       _mockJwtTokenGenerator = new Mock<IJwtTokenGenerator>();
+      _mockCustomerValidator = new Mock<ICustomerValidator>();
 
-      _customerService = new CustomerSevice(
+      _customerService = new CustomerService(
           logger,
           _mockCustomerRepository.Object,
           _mockRentalRepository.Object,
           _mockVehicleRepository.Object,
-          _mockJwtTokenGenerator.Object);
+          _mockCustomerMapper.Object,
+          _mockJwtTokenGenerator.Object,
+          _mockCustomerValidator.Object);
     }
+
     [Fact]
     public async Task Create_WithValidData_ShouldReturnSuccess()
     {
-      // Arange
+      // Arrange
       var createCustomerDto = new CustomerCreateDto("Test customer 1");
-      var customer = CustomerEntity.Create("Test Customer 1");
+      var customer = CustomerEntity.Create("Test customer 1").Value;
+      var returnDto = new CustomerReturnDto(1, "Test customer 1", false);
+
+      _mockCustomerValidator.Setup(v => v.ValidateCreate(It.IsAny<CustomerCreateDto>()))
+        .Returns(Result<bool>.Success(true));
+
+      _mockCustomerMapper.Setup(m => m.ToEntity(It.IsAny<CustomerCreateDto>()))
+        .Returns(Result<CustomerEntity>.Success(customer));
 
       _mockCustomerRepository.Setup(repo => repo
         .Create(It.IsAny<CustomerEntity>(), default))
-        .ReturnsAsync(Result<CustomerEntity>.Success(customer.Value));
+        .ReturnsAsync(Result<CustomerEntity>.Success(customer));
+
+      _mockCustomerMapper.Setup(m => m.ToReturnDto(It.IsAny<CustomerEntity>()))
+        .Returns(Result<CustomerReturnDto>.Success(returnDto));
 
       // Act
       var result = await _customerService.Create(createCustomerDto);
 
       // Assert
       Assert.True(result.IsSuccess);
-      Assert.Equal("Test Customer 1", result.Value.Name);
+      Assert.Equal("Test customer 1", result.Value.Name);
     }
 
-
     [Fact]
-    public async Task CreateWithNotValidData_ShouldReturnError()
+    public async Task CreateWithInvalidData_ShouldReturnError()
     {
-      // Arange 
+      // Arrange 
       var createCustomerDto = new CustomerCreateDto("");
+
+      _mockCustomerValidator.Setup(v => v.ValidateCreate(It.IsAny<CustomerCreateDto>()))
+        .Returns(Result<bool>.Failure(Error.ValidationError("Customer name can not be empty")));
 
       // Act
       var result = await _customerService.Create(createCustomerDto);
@@ -73,8 +93,11 @@ namespace RentalPlatform.UnitTests.Application.Customer
     [Fact]
     public async Task CreateWithNullDto_ShouldReturnError()
     {
-      // Arange 
-      CustomerCreateDto createCustomerDto = null;
+      // Arrange 
+      CustomerCreateDto createCustomerDto = null!;
+
+      _mockCustomerValidator.Setup(v => v.ValidateCreate(It.IsAny<CustomerCreateDto>()))
+        .Returns(Result<bool>.Failure(Error.NullReferenceError("CustomerReturnDto cannot be null.")));
 
       // Act
       var result = await _customerService.Create(createCustomerDto);
@@ -90,7 +113,7 @@ namespace RentalPlatform.UnitTests.Application.Customer
       // Arrange
       var customerId = 1;
       _mockCustomerRepository.Setup(repo => repo.GetById(customerId, default))
-        .ReturnsAsync(Result<CustomerEntity>.Failure(Error.NotFound("Customer with id '{customerId}'")));
+        .ReturnsAsync(Result<CustomerEntity>.Failure(Error.NotFound($"Customer with id {customerId} not found")));
 
       // Act
       var result = await _customerService.GetById(customerId);
@@ -101,84 +124,61 @@ namespace RentalPlatform.UnitTests.Application.Customer
     }
 
     [Fact]
-    public async Task GetById_CustomerWithCompleatedRentals_CalculatesTortalsCorrectly()
+    public async Task GetById_CustomerWithCompletedRentals_CalculatesTotalsCorrectly()
     {
       // Arrange
       var customerId = 1;
-      string vehicle1Vin = "VIN2";
-      string vehicle2Vin = "VIN1";
+      string vehicle1Vin = "VIN1";
 
       var customer = CustomerEntity.Create("Test customer 1").Value;
+      var customerSingleDto = new CustomerReturnSingleDto(1, "Test customer 1", false, 500f, 510f);
 
       var rentals = new List<Rental> {
-
-        Rental.Create
-        (
-          customerId: customerId,
-          vehicleId: vehicle1Vin,
-
+        Rental.Create(
           startDate: new DateTime(2025, 1, 1),
           endDate: new DateTime(2025, 1, 3),
-
           odometerStart: 0,
           odometerEnd: 500,
-
           batterySOCStart: 80,
-          batterySOCEnd: 30
+          batterySOCEnd: 30,
+          vehicleId: vehicle1Vin,
+          customerId: customerId
         ).Value
       };
 
-      var vehacleVins = new List<string> { vehicle1Vin };
+      var vehicleVins = new List<string> { vehicle1Vin };
       var vehicles = new List<Vehicle>
       {
-        Vehicle.Create
-       (
-          vin : vehicle1Vin,
-          make : "Mazda",
-          model : "Miata",
-          year : 2019,
-          pricePerDayInEuro : 0.5f,
-          pricePerKmInEuro : 100f
+        Vehicle.Create(
+          vin: vehicle1Vin,
+          make: "Mazda",
+          model: "Miata",
+          year: 2019,
+          pricePerKmInEuro: 0.5f,
+          pricePerDayInEuro: 100f
         ).Value
-    };
-      var vehicleDict = vehicles.ToDictionary(v => v.Vin);
+      };
 
-      _mockCustomerRepository.Setup(repo => repo.GetById(customerId, default)).ReturnsAsync(Result<CustomerEntity>.Success(customer));
-      _mockRentalRepository.Setup(repo => repo.GetByCustomerId(customerId, default)).ReturnsAsync(Result<IEnumerable<Rental>>.Success(rentals));
-      _mockVehicleRepository.Setup(repo => repo.GetByVins(vehacleVins, default)).ReturnsAsync(Result<IEnumerable<Vehicle>>.Success(vehicles));
+      _mockCustomerRepository.Setup(repo => repo.GetById(customerId, default))
+        .ReturnsAsync(Result<CustomerEntity>.Success(customer));
+
+      _mockRentalRepository.Setup(repo => repo.GetByCustomerId(customerId, default))
+        .ReturnsAsync(Result<IEnumerable<Rental>>.Success(rentals));
+
+      _mockVehicleRepository.Setup(repo => repo.GetByVins(vehicleVins, default))
+        .ReturnsAsync(Result<IEnumerable<Vehicle>>.Success(vehicles));
+
+      _mockCustomerMapper.Setup(m => m.ToReturnSingleDto(It.IsAny<CustomerEntity>(), It.IsAny<float>(), It.IsAny<float>()))
+        .Returns((CustomerEntity c, float distance, float price) =>
+          Result<CustomerReturnSingleDto>.Success(new CustomerReturnSingleDto(c.ID, c.Name, c.IsDeleted, distance, price)));
 
       // Act
       var result = await _customerService.GetById(customerId);
 
-      /**
-        `total_kilometers_per_rental × price_per_km_in_euro`  
-        `+ number_of_rental_days × price_per_day_in_euro`  
-        `+ max(0, -battery_delta_per_rental) × 0.2€`
-      **/
-      var rentalStats = rentals.Select(rental =>
-      {
-        if (!vehicleDict.TryGetValue(rental.VehicleId, out var vehicle))
-          return null;
-        float distance = rental.OdometerEnd!.Value - rental.OdometerStart;
-        float days = Math.Max(1, (int)Math.Ceiling((rental.EndDate - rental.StartDate).TotalDays));
-        float batteryDelta = rental.BatterySOCEnd!.Value - rental.BatterySOCStart;
-        return new
-        {
-          Distance = distance,
-          Days = days,
-          Cost = distance * vehicle.PricePerKmInEuro + days * vehicle.PricePerDayInEuro + Math.Max(0, -batteryDelta) * 0.2f,
-          Vehicle = vehicle
-        };
-      }
-
-        );
-      var distance = rentalStats.Sum(s => s!.Distance);
-      var price = rentalStats.Sum(s => s!.Cost);
-
       // Assert
       Assert.True(result.IsSuccess);
-      Assert.Equal(distance, result.Value.TotalDistanceDriven);
-      Assert.Equal(price, result.Value.TotalPrice);
+      Assert.Equal(500, result.Value.TotalDistanceDriven);
+      Assert.Equal(460, result.Value.TotalPrice); // 500km * 0.5€/km + 2 days * 100€/day + 50 * 0.2€ penalty => 460
     }
   }
 }
