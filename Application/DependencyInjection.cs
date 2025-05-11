@@ -1,6 +1,8 @@
 ﻿using Application.Services;
 using Application.Interfaces.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Application.Interfaces.Mapers;
+using Application.Mapers;
 
 namespace Application
 {
@@ -9,9 +11,15 @@ namespace Application
 
     public static IServiceCollection AddApplicationServices(this IServiceCollection services) 
     {
+      // Services
       services.AddScoped<ICustomerService, CustomerSevice>();
       services.AddScoped<IRentalService, RentalService>();
       services.AddScoped<IVeachelService, VehicleService>();
+
+      // Mappers
+      services.AddScoped<ICustomerMapper, CustomerMapper>();
+      services.AddScoped<IVehicleMapper, VehicleMapper>();
+      services.AddScoped<IRentalMapper, RentalMapper>();
 
       return services;
     }
