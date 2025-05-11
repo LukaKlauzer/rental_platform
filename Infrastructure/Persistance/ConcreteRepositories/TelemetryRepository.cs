@@ -116,7 +116,7 @@ namespace Infrastructure.Persistance.ConcreteRepositories
 
         if (mostRecentRecord is not null)
           return Result<Telemetry>.Success(mostRecentRecord);
-        return Result<Telemetry>.Failure(Error.NotFound($"Teletry for: '{dateTime}' not found"));
+        return Result<Telemetry>.Failure(Error.NotFound($"Telemetry for: '{dateTime}' not found"));
       }
       catch (Exception ex)
       {
@@ -140,7 +140,7 @@ namespace Infrastructure.Persistance.ConcreteRepositories
 
         if (earliestRecord is not null)
           return Result<Telemetry>.Success(earliestRecord);
-        return Result<Telemetry>.Failure(Error.NotFound($"Teletry for: '{dateTime}' not found"));
+        return Result<Telemetry>.Failure(Error.NotFound($"Telemetry for: '{dateTime}' not found"));
       }
       catch (Exception ex)
       {
