@@ -24,9 +24,9 @@ namespace Application.DTOs.Rental
        string VehicleId,
        int CustomerId,
 
-       float DistanceTraveled,
+       float? DistanceTraveled,
        float BatterySOCSAtStart,
-       float BatterySOCAtEnd);
+       float? BatterySOCAtEnd);
 
   public record RentalUpdateDto(
      int Id,
