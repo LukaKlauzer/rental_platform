@@ -3,6 +3,10 @@ using Application.Interfaces.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Application.Interfaces.Mapers;
 using Application.Mapers;
+using Application.Interfaces.DataValidation;
+using Application.DTOs.Rental;
+using Application.DTOs.Customer;
+using Application.DTOs.Vehicle;
 
 namespace Application
 {
@@ -20,6 +24,11 @@ namespace Application
       services.AddScoped<ICustomerMapper, CustomerMapper>();
       services.AddScoped<IVehicleMapper, VehicleMapper>();
       services.AddScoped<IRentalMapper, RentalMapper>();
+
+      // Validators
+      services.AddScoped<ICustomerValidator, CustomerDtoValidator>();
+      services.AddScoped<IRentalValidator, RentalDtoValidator>();
+      services.AddScoped<IVehicleValidator, VehicleDtoValidator>();
 
       return services;
     }
