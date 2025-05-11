@@ -15,7 +15,7 @@ namespace Core.Domain.Entities
       PricePerKmInEuro = pricePerKmInEuro;
       PricePerDayInEuro = pricePerDayInEuro;
     }
-    public Result<Vehicle> Create(string vin, string make, string model, int year, float pricePerKmInEuro, float pricePerDayInEuro)
+    public static Result<Vehicle> Create(string vin, string make, string model, int year, float pricePerKmInEuro, float pricePerDayInEuro)
     {
       var validationReult = ValidateVehicle(vin, make, model, year, pricePerKmInEuro, pricePerDayInEuro);
       if (validationReult.IsFailure)
@@ -26,7 +26,7 @@ namespace Core.Domain.Entities
       return Result<Vehicle>.Success(vehicle);
     }
 
-    private Result<bool> ValidateVehicle(string vin, string make, string model, int year, float pricePerKmInEuro, float pricePerDayInEuro)
+    private static Result<bool> ValidateVehicle(string vin, string make, string model, int year, float pricePerKmInEuro, float pricePerDayInEuro)
     {
       if (string.IsNullOrEmpty(vin))
         return Result<bool>.Failure(Error.ValidationError("Vin can not be null or empty string"));
