@@ -74,15 +74,15 @@ namespace Core.Domain.Entities
       float? odometerEnd = null,
       float? batterySOCEnd = null)
     {
-      if (endDate <= startDate)
-        return Result<bool>.Failure(Error.ValidationError(" End date mush be after start date"));
+      var validateDateResult = ValidateDates(startDate, endDate);
+      if (validateDateResult.IsFailure)
+        return validateDateResult;
 
       if (odometerStart < 0)
         return Result<bool>.Failure(Error.ValidationError("Odometer start reading can not be negative"));
 
       if (batterySOCStart < 0 || batterySOCStart > 100)
         return Result<bool>.Failure(Error.ValidationError($"Battery SOC start reading must be between 0 and 100, value provided:{batterySOCStart}"));
-
       if (odometerEnd.HasValue)
       {
         if (odometerEnd.Value < 0)
@@ -104,6 +104,39 @@ namespace Core.Domain.Entities
       return Result<bool>.Success(true);
     }
 
+    private static Result<bool> ValidateDates(DateTime startDate, DateTime endDate)
+    {
+      if (endDate <= startDate)
+        return Result<bool>.Failure(Error.ValidationError(" End date mush be after start date"));
+
+      return Result<bool>.Success(true);
+    }
+
+    public Result<bool> UpdateDates(DateTime? startDate = null, DateTime? endDate = null)
+    {
+      if (startDate is  null && endDate is null)
+        return Result<bool>.Failure(Error.ValidationError("At least one date must be provided for update"));
+
+      var originalStartDate = StartDate;
+      var originalEndDate = EndDate;
+
+      if (startDate.HasValue)
+        StartDate = startDate.Value;
+
+      if (endDate.HasValue)
+        EndDate = endDate.Value;
+
+      var validationResult = ValidateDates(startDate: StartDate, endDate: EndDate);
+      if (validationResult.IsFailure)
+      {
+        StartDate = originalStartDate;
+        EndDate = originalEndDate;
+
+        return validationResult;
+      }
+
+      return Result<bool>.Success(true);
+    }
     public DateTime StartDate { get; private set; }
     public DateTime EndDate { get; private set; }
     public RentalStatus RentalStatus { get; private set; }
