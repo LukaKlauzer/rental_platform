@@ -128,7 +128,7 @@ namespace RentalPlatform.Tests.Unit.Application.Customer
     {
       // Arrange
       var customerId = 1;
-      string vehicle1Vin = "VIN1";
+      string vehicle1Vin = "WAUZZZ4V4KA000002";
 
       var customer = CustomerEntity.Create("Test customer 1").Value;
       var customerSingleDto = new CustomerReturnSingleDto(1, "Test customer 1", false, 500f, 510f);
