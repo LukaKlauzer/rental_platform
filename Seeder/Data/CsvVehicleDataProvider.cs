@@ -1,8 +1,11 @@
-﻿using Core.Domain.Entities;
-using Core.Interfaces.Data;
-using Core.Interfaces.Persistence.SpecificRepository;
+﻿using System.Collections.Generic;
+using System.Globalization;
+using Application.Interfaces.Data;
+using Core.Domain.Entities;
 using Core.Interfaces.Validation;
 using Core.Result;
+using CsvHelper;
+using CsvHelper.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Seeder.Options;
@@ -11,177 +14,127 @@ namespace Seeder.Data
 {
   internal class CsvVehicleDataProvider : IVehicleDataProvider
   {
-    private readonly ILogger<CsvTelemetryDataProvider> _logger;
+    private readonly ILogger<CsvVehicleDataProvider> _logger;
     private readonly IVehicleValidator _validator;
-    private readonly IVehicleRepository _vehicleRepository;
     private string _filePath;
 
     public CsvVehicleDataProvider(
       IOptions<CsvDataOptions> options,
-      ILogger<CsvTelemetryDataProvider> logger,
-      IVehicleValidator validator,
-      IVehicleRepository vehicleRepository)
+      ILogger<CsvVehicleDataProvider> logger,
+      IVehicleValidator validator)
     {
       _filePath = options.Value.VehicleDataFilePath;
       _logger = logger;
       _validator = validator;
-      _vehicleRepository = vehicleRepository;
     }
 
-    public async Task<Result<IEnumerable<Vehicle>>> GetVehicleDataAsync(CancellationToken cancellationToken)
+    public async Task<Result<IEnumerable<Vehicle>>> GetVehicleDataAsync(CancellationToken cancellationToken = default)
     {
-      var fileValidation = ValidateFile();
-      if (fileValidation.IsFailure)
-        return fileValidation;
+      var vehicles = new List<Vehicle>();
+      var totalRows = 0;
+      var skippedRows = 0;
 
       try
       {
         using var reader = new StreamReader(_filePath);
+        using var csv = new CsvReader(reader, GetCsvConfiguration());
 
-        var headerResult = await ReadAndValidateHeaderAsync(reader, cancellationToken);
-        if (headerResult.IsFailure)
-          return headerResult;
-
-        var allCsvVehicleRecords = await ProcessDataRowsAsync(reader, cancellationToken);
-
-
-        // Retrieve all vehicles to validate if their telemetry records are valid
-        var allExistingVehiclesResult = await _vehicleRepository.GetAll();
-        if (allExistingVehiclesResult.IsFailure)
-          return Result<IEnumerable<Vehicle>>.Failure(Error.DatabaseReadError("Failed to retrieve vehicles for telemetry validation: " +
-                                        allExistingVehiclesResult.Error.Message));
-
-        var distinctExistingVins = allExistingVehiclesResult.Value.Select(x => x.Vin).Distinct().ToList();
-        if (distinctExistingVins is null)
-          return Result<IEnumerable<Vehicle>>.Failure(Error.NullReferenceError("No vehicles found in the database. Cannot validate telemetry data."));
-
-        var validVehicles = _validator.FilterValidVehicles(allCsvVehicleRecords);
-
-        var nonExistingVehacles = validVehicles.Where(v => !distinctExistingVins.Contains(v.Vin)).ToList();
-
-        return Result<IEnumerable<Vehicle>>.Success(nonExistingVehacles);
-      }
-      catch (Exception ex)
-      {
-        return Result<IEnumerable<Vehicle>>.Failure(Error.ProcessingCsv($"Error occurred while processing vehicle csv file: {ex.Message}"));
-      }
-    }
-
-    private Result<IEnumerable<Vehicle>> ValidateFile()
-    {
-      if (string.IsNullOrEmpty(_filePath))
-        return Result<IEnumerable<Vehicle>>.Failure(
-            Error.ValidationError("Vehicle CSV file path is not configured in application settings."));
-
-      if (!File.Exists(_filePath))
-        return Result<IEnumerable<Vehicle>>.Failure(
-            Error.NotFound($"Vehicle CSV file not found: {_filePath}"));
-
-      return Result<IEnumerable<Vehicle>>.Success(Enumerable.Empty<Vehicle>());
-    }
-
-    private async Task<Result<IEnumerable<Vehicle>>> ReadAndValidateHeaderAsync(StreamReader reader, CancellationToken cancellationToken)
-    {
-      string? headerLine = await reader.ReadLineAsync(cancellationToken);
-      if (headerLine == null)
-        return Result<IEnumerable<Vehicle>>.Success(Enumerable.Empty<Vehicle>());
-
-      // Define the expected headers and their order
-      string[] expectedHeaders = { "vin", "make", "model", "year", "priceperkmineuro", "priceperdayineuro" };
-      string[] headers = headerLine.Split(',').Select(h => h.Trim().ToLower()).ToArray();
-
-      // Validate header count
-      var headerCountValidation = ValidateHeaderCount(headers, expectedHeaders);
-      if (headerCountValidation.IsFailure)
-        return headerCountValidation;
-
-      // Validate header order
-      var headerOrderValidation = ValidateHeaderOrder(headers, expectedHeaders);
-      if (headerOrderValidation.IsFailure)
-        return headerOrderValidation;
-
-      return Result<IEnumerable<Vehicle>>.Success(Enumerable.Empty<Vehicle>());
-    }
-
-    private Result<IEnumerable<Vehicle>> ValidateHeaderCount(string[] headers, string[] expectedHeaders)
-    {
-      if (headers.Length != expectedHeaders.Length)
-      {
-        _logger.LogError("CSV file has {ActualCount} columns, but expected {ExpectedCount}",
-            headers.Length, expectedHeaders.Length);
-        return Result<IEnumerable<Vehicle>>.Failure(
-            Error.ValidationError("CSV file has an incorrect number of columns."));
-      }
-
-      return Result<IEnumerable<Vehicle>>.Success(Enumerable.Empty<Vehicle>());
-    }
-
-    private Result<IEnumerable<Vehicle>> ValidateHeaderOrder(string[] headers, string[] expectedHeaders)
-    {
-      for (int i = 0; i < expectedHeaders.Length; i++)
-        if (headers[i] != expectedHeaders[i])
+        if (csv.Configuration.HasHeaderRecord)
         {
-          _logger.LogError("CSV header mismatch at position {Position}. Expected: {Expected}, Found: {Actual}",
-              i, expectedHeaders[i], headers[i]);
-          return Result<IEnumerable<Vehicle>>.Failure(
-              Error.ValidationError($"CSV header format is invalid. Expected '{expectedHeaders[i]}' at position {i}, but found '{headers[i]}'."));
-
+          await csv.ReadAsync();
+          csv.ReadHeader();
         }
-      return Result<IEnumerable<Vehicle>>.Success(Enumerable.Empty<Vehicle>());
-    }
 
-    private async Task<List<Vehicle>> ProcessDataRowsAsync(StreamReader reader, CancellationToken cancellationToken)
-    {
-      List<Vehicle> vehicleRecords = new List<Vehicle>();
-      string[] expectedHeaders = { "vin", "make", "model", "year", "priceperkminuro", "priceperdayineuro" };
-      int rowNumber = 1; // Start at 1
-      string? line;
-
-      while ((line = await reader.ReadLineAsync(cancellationToken)) != null)
-      {
-        rowNumber++;
-
-        if (string.IsNullOrWhiteSpace(line))
-          continue;
-
-        var vehicle = ParseRow(line, rowNumber, expectedHeaders.Length);
-        if (vehicle != null)
-          vehicleRecords.Add(vehicle);
-
-      }
-      return vehicleRecords;
-    }
-
-    private Vehicle? ParseRow(string line, int rowNumber, int expectedFieldCount)
-    {
-      string[] fields = line.Split(',').Select(f => f.Trim()).ToArray();
-
-      // Ensure the row has the correct number of fields
-      if (fields.Length != expectedFieldCount)
-      {
-        _logger.LogWarning("Row {RowNumber} has {FieldCount} fields, expected {ExpectedCount}. Skipping.",
-            rowNumber, fields.Length, expectedFieldCount);
-        return null;
-      }
-
-      try
-      {
-        return new Vehicle
+        // Manually read each record to handle row-by-row errors
+        while (await csv.ReadAsync())
         {
-          Vin = fields[0],
-          Make = fields[1],
-          Model = fields[2],
-          Year = int.Parse(fields[3]),
-          PricePerKmInEuro = float.Parse(fields[4]),
-          PricePerDayInEuro = float.Parse(fields[5])
-        };
+          totalRows++;
+
+          try
+          {
+            var record = csv.GetRecord<VehicleCsvDto>();
+            var vehicleResult = CreateVehicle(record);
+
+            if (vehicleResult.IsSuccess)
+            {
+              vehicles.Add(vehicleResult.Value);
+            }
+            else
+            {
+              skippedRows++;
+              _logger.LogWarning("Failed to create vehicle at row {Row}: {Error}",
+                  csv.Context.Parser?.Row, vehicleResult.Error.Message);
+            }
+          }
+          catch (Exception ex)
+          {
+            skippedRows++;
+            _logger.LogWarning(ex, "Failed to parse row {Row}: {Message}",
+                csv.Context.Parser?.Row, ex.Message);
+          }
+        }
+
+        _logger.LogInformation("CSV processing complete. Total rows: {Total}, Valid: {Valid}, Skipped: {Skipped}",
+            totalRows, vehicles.Count, skippedRows);
+
+        // Filter using your validator => not necesery
+        var validVehicles = _validator.FilterValidVehicles(vehicles);
+
+        return Result<IEnumerable<Vehicle>>.Success(validVehicles);
       }
       catch (Exception ex)
       {
-        _logger.LogWarning(ex, "Error parsing row {RowNumber}. Skipping.", rowNumber);
-        return null;
+        _logger.LogError(ex, "Critical error reading vehicle CSV file");
+        return Result<IEnumerable<Vehicle>>.Failure(
+            Error.ProcessingCsv($"Failed to process vehicle CSV: {ex.Message}"));
       }
     }
+    private Result<Vehicle> CreateVehicle(VehicleCsvDto dto)
+    {
+      return Vehicle.Create(
+         vin: dto.Vin,
+         make: dto.Make,
+         model: dto.Model,
+         year: dto.Year,
+         pricePerKmInEuro: dto.PricePerKmInEuro,
+         pricePerDayInEuro: dto.PricePerDayInEuro
+      );
+    }
 
+    private CsvConfiguration GetCsvConfiguration()
+    {
+      return new CsvConfiguration(CultureInfo.InvariantCulture)
+      {
+        TrimOptions = TrimOptions.Trim,
+        HasHeaderRecord = true,
+
+        MissingFieldFound = (args) =>
+        {
+          if (args.HeaderNames is null)
+            return;
+
+          var missingField = string.Join(", ", args.HeaderNames ?? Array.Empty<string>());
+          var message = string.Format("Missing field at row: {Row}, position: {Index}. Expected fields: {Fields}",
+              args.Context.Parser?.Row, args.Index, missingField);
+          _logger.LogWarning(message);
+
+        },
+        BadDataFound = context =>
+        {
+          // I dont think this onw is been used
+          _logger.LogWarning("Unable to parse data found at row {Row}: {RawRecord}",
+              context.Context.Parser?.Row, context.RawRecord);
+          return;
+        },
+        ReadingExceptionOccurred = args =>
+        {
+          _logger.LogError(args.Exception, "CSV reading error at row {Row}",
+              args.Exception.Context?.Parser?.Row);
+
+          // Continue processing (return true) or stop (return false)
+          return true;
+        }
+      };
+    }
   }
 }
