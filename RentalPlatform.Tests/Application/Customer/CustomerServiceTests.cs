@@ -1,15 +1,14 @@
 ﻿using Application.Services;
 using Core.Domain.Entities;
-using Core.DTOs.Customer;
+using Application.DTOs.Customer;
 using Core.Enums;
-using Core.Interfaces.Persistence.SpecificRepository;
-using Core.Interfaces.Services;
+using Application.Interfaces.Persistence.SpecificRepository;
+using Application.Interfaces.Services;
 using Core.Result;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging;
 using Moq;
 using CustomerEntity = Core.Domain.Entities.Customer;
-using Core.Interfaces.Authentification;
 
 namespace RentalPlatform.UnitTests.Application.Customer
 {
@@ -41,12 +40,12 @@ namespace RentalPlatform.UnitTests.Application.Customer
     public async Task Create_WithValidData_ShouldReturnSuccess()
     {
       // Arange
-      var createCustomerDto = new CustomerCreateDTO() { Name = "Test customer 1" };
-      var customer = new CustomerEntity { ID = 1, Name = "Test Customer 1" };
+      var createCustomerDto = new CustomerCreateDto("Test customer 1");
+      var customer = CustomerEntity.Create("Test Customer 1");
 
       _mockCustomerRepository.Setup(repo => repo
         .Create(It.IsAny<CustomerEntity>(), default))
-        .ReturnsAsync(Result<CustomerEntity>.Success(customer));
+        .ReturnsAsync(Result<CustomerEntity>.Success(customer.Value));
 
       // Act
       var result = await _customerService.Create(createCustomerDto);
@@ -61,7 +60,7 @@ namespace RentalPlatform.UnitTests.Application.Customer
     public async Task CreateWithNotValidData_ShouldReturnError()
     {
       // Arange 
-      var createCustomerDto = new CustomerCreateDTO() { Name = "" };
+      var createCustomerDto = new CustomerCreateDto("");
 
       // Act
       var result = await _customerService.Create(createCustomerDto);
@@ -109,38 +108,38 @@ namespace RentalPlatform.UnitTests.Application.Customer
       string vehicle1Vin = "VIN2";
       string vehicle2Vin = "VIN1";
 
-      var customer = new CustomerEntity() { ID = customerId, Name = "Test customer 1" };
+      var customer = CustomerEntity.Create("Test customer 1").Value;
 
-      var rentals = new List<Rental>
-      {
-        new Rental
-        {
-          ID = 1,
-          CustomerId = customerId,
-          VehicleId = vehicle1Vin,
+      var rentals = new List<Rental> {
 
-          StartDate = new DateTime(2025, 1, 1),
-          EndDate = new DateTime(2025, 1,3),
+        Rental.Create
+        (
+          customerId: customerId,
+          vehicleId: vehicle1Vin,
 
-          OdometerStart = 0,
-          OdometerEnd = 500,
+          startDate: new DateTime(2025, 1, 1),
+          endDate: new DateTime(2025, 1, 3),
 
-          BatterySOCStart = 80,
-          BatterySOCEnd=30
-        }
+          odometerStart: 0,
+          odometerEnd: 500,
+
+          batterySOCStart: 80,
+          batterySOCEnd: 30
+        ).Value
       };
+
       var vehacleVins = new List<string> { vehicle1Vin };
       var vehicles = new List<Vehicle>
       {
-        new Vehicle
-        {
-          Vin = vehicle1Vin,
-          Make = "Mazda",
-          Model = "Miata",
-          Year = 2019,
-          PricePerDayInEuro = 0.5f,
-          PricePerKmInEuro = 100f
-        }
+        Vehicle.Create
+       (
+          vin : vehicle1Vin,
+          make : "Mazda",
+          model : "Miata",
+          year : 2019,
+          pricePerDayInEuro : 0.5f,
+          pricePerKmInEuro : 100f
+        ).Value
     };
       var vehicleDict = vehicles.ToDictionary(v => v.Vin);
 
