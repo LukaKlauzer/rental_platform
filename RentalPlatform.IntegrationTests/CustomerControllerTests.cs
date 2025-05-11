@@ -1,5 +1,6 @@
-﻿using System.Net.Http.Json;
-using Core.DTOs.Customer;
+﻿using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using Application.DTOs.Customer;
 using FluentAssertions;
 using RentalPlatform.Tests.Integration;
 
@@ -21,48 +22,95 @@ namespace RentalPlatform.IntegrationTests
 
 
     [Fact]
-    public async Task GivenValidCustomerDto_CreatesCustomer()
+    public async Task CreateCustomer_ShouldReturnSuccess()
     {
-  
-      // Arange
-      var customerCreateDto = new CustomerCreateDTO() { Name = "Test user 1" };
+      // Arrange
+      var customerCreateDto = new CustomerCreateDto("Test Customer 1");
 
-      // Act
+      // Act - Create endpoint doesn't require auth
       var response = await _httpClient.PostAsJsonAsync("api/customer", customerCreateDto);
       var createdCustomer = await response.Content.ReadFromJsonAsync<CustomerReturnDto>();
 
       // Assert
-      response.StatusCode.Should().Be(System.Net.HttpStatusCode.Created);
+      response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
       createdCustomer.Should().NotBeNull();
-      createdCustomer.Name.Should().Be(customerCreateDto.Name);
-
-      _customerIds.Add(createdCustomer.Id);
+      createdCustomer!.Name.Should().Be(customerCreateDto.Name);
     }
 
     [Fact]
-    public async Task CreateCustomer_RetrieveCustomerById()
+    public async Task Login_ShouldReturnToken()
     {
-     
-      // Arange
-      var customerCreateDto = new CustomerCreateDTO() { Name = "Test user 2" };
+      // Arrange - First create a customer
+      var customerCreateDto = new CustomerCreateDto("Test Customer 2");
+      var createResponse = await _httpClient.PostAsJsonAsync("api/customer", customerCreateDto);
+      var createdCustomer = await createResponse.Content.ReadFromJsonAsync<CustomerReturnDto>();
 
-      // Act
-      var responce = await _httpClient.PostAsJsonAsync("api/customer", customerCreateDto);
-      var createdCustomer = await responce.Content.ReadFromJsonAsync<CustomerReturnDto>();
-      createdCustomer.Should().NotBeNull();
+      // Act - Login doesn't require auth
+      var loginResponse = await _httpClient.GetAsync($"api/customer/login/{createdCustomer!.Id}");
+      var token = await loginResponse.Content.ReadAsStringAsync();
 
       // Assert
-      var getCustomer = await _httpClient.GetAsync($"api/customer/{createdCustomer.Id}");
-      getCustomer.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
-
-      var retreaveCustomer = await getCustomer.Content.ReadFromJsonAsync<CustomerReturnDto>();
-      retreaveCustomer.Should().NotBeNull();
-      retreaveCustomer.Name.Should().Be(customerCreateDto.Name);
-
-      _customerIds.Add(createdCustomer.Id);
+      loginResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+      token.Should().NotBeNullOrEmpty();
     }
 
-    
+    [Fact]
+    public async Task GetById_WithAuth_ShouldReturnCustomer()
+    {
+      // Arrange - Create customer and login
+      var customerCreateDto = new CustomerCreateDto("Test Customer 3");
+      var createResponse = await _httpClient.PostAsJsonAsync("api/customer", customerCreateDto);
+      var createdCustomer = await createResponse.Content.ReadFromJsonAsync<CustomerReturnDto>();
+
+      // Get auth token
+      var loginResponse = await _httpClient.GetAsync($"api/customer/login/{createdCustomer!.Id}");
+      var token = await loginResponse.Content.ReadAsStringAsync();
+      token = token.Trim('"');
+
+      // Act - GetById requires auth token
+      var request = new HttpRequestMessage(HttpMethod.Get, $"api/customer/{createdCustomer.Id}");
+      request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+      var getResponse = await _httpClient.SendAsync(request);
+      var retrievedCustomer = await getResponse.Content.ReadFromJsonAsync<CustomerReturnSingleDto>();
+
+      // Assert
+      getResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+      retrievedCustomer.Should().NotBeNull();
+      retrievedCustomer!.Name.Should().Be(customerCreateDto.Name);
+    }
+
+    [Fact]
+    public async Task GetAll_WithoutAuth_ShouldReturnUnauthorized()
+    {
+      // Act - Try to access protected endpoint without auth token
+      var response = await _httpClient.GetAsync("api/customer");
+
+      // Assert
+      response.StatusCode.Should().Be(System.Net.HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task DeleteCustomer_WithAuth_ShouldReturnSuccess()
+    {
+      // Arrange - Create customer and login
+      var customerCreateDto = new CustomerCreateDto("Test Customer 5");
+      var createResponse = await _httpClient.PostAsJsonAsync("api/customer", customerCreateDto);
+      var createdCustomer = await createResponse.Content.ReadFromJsonAsync<CustomerReturnDto>();
+
+      var loginResponse = await _httpClient.GetAsync($"api/customer/login/{createdCustomer!.Id}");
+      var token = await loginResponse.Content.ReadAsStringAsync();
+      token = token.Trim('"');
+
+      // Act - Delete requires auth token
+      var request = new HttpRequestMessage(HttpMethod.Delete, $"api/customer/{createdCustomer.Id}");
+      request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+      var deleteResponse = await _httpClient.SendAsync(request);
+
+      // Assert
+      deleteResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+    }
     public Task InitializeAsync()
     {
       return Task.CompletedTask;
