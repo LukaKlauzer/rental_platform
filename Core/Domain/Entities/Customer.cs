@@ -1,4 +1,5 @@
 ﻿using Core.Domain.Common;
+using Core.Domain.EntityValidation;
 using Core.Result;
 
 namespace Core.Domain.Entities
@@ -14,7 +15,7 @@ namespace Core.Domain.Entities
 
     public static Result<Customer> Create(string name)
     {
-      var validationResult = ValidateData(name);
+      var validationResult = CustomerValidator.ValidateCustomerData(name);
 
       if (validationResult.IsFailure)
         return Result<Customer>.Failure(validationResult.Error);
@@ -30,20 +31,12 @@ namespace Core.Domain.Entities
 
     public Result<bool> Update(string name)
     {
-      var validationResult = ValidateData(name);
+      var validationResult = CustomerValidator.ValidateCustomerData(name);
 
       if (validationResult.IsFailure)
         return Result<bool>.Failure(validationResult.Error);
 
       Name = name;
-
-      return Result<bool>.Success(true);
-    }
-
-    private static Result<bool> ValidateData(string name)
-    {
-      if (string.IsNullOrEmpty(name))
-        return Result<bool>.Failure(Error.ValidationError("Customers name can not be null or empty"));
 
       return Result<bool>.Success(true);
     }
