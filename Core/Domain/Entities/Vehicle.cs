@@ -39,13 +39,13 @@ namespace Core.Domain.Entities
         return Result<bool>.Failure(Error.ValidationError("Model can not be null or empty string"));
 
       if (year < 0)
-        return Result<bool>.Failure(Error.ValidationError("Year can not be negative number"));
+        return Result<bool>.Failure(Error.ValidationError("Year can not be negativee number"));
 
       if (pricePerKmInEuro < 0)
-        return Result<bool>.Failure(Error.ValidationError("Price per km in euro can not be negative number"));
+        return Result<bool>.Failure(Error.ValidationError("Price per km in euro can not be negativee number"));
 
       if (pricePerDayInEuro < 0)
-        return Result<bool>.Failure(Error.ValidationError("Price per day in euro can not be negative number"));
+        return Result<bool>.Failure(Error.ValidationError("Price per day in euro can not be negativee number"));
 
       return Result<bool>.Success(true);
     }

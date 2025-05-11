@@ -12,9 +12,9 @@ namespace Application
     public static IServiceCollection AddApplicationServices(this IServiceCollection services) 
     {
       // Services
-      services.AddScoped<ICustomerService, CustomerSevice>();
+      services.AddScoped<ICustomerService, CustomerService>();
       services.AddScoped<IRentalService, RentalService>();
-      services.AddScoped<IVeachelService, VehicleService>();
+      services.AddScoped<IVehicleService, VehicleService>();
 
       // Mappers
       services.AddScoped<ICustomerMapper, CustomerMapper>();

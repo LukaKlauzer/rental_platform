@@ -2,7 +2,7 @@ using Application.DTOs.Rental;
 using Application.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using rental_platform.Extentions;
+using rental_platform.Extensions;
 
 namespace rental_platform.Controllers
 {
@@ -37,7 +37,7 @@ namespace rental_platform.Controllers
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Cancle(int id)
+    public async Task<IActionResult> Cancel(int id)
     {
       var result = await _rentalService.CancelReservation(id);
 

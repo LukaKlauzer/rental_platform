@@ -1,12 +1,12 @@
 ﻿using Application.Interfaces.Authentification;
-using Infrastructure.Authentification;
+using rental_platform.Authentification;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
-namespace rental_platform.Extentions
+namespace rental_platform.Extensions
 {
   public static class ServiceCollectionExtensions
   {

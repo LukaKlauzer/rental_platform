@@ -34,12 +34,12 @@ namespace Core.Domain.Entities
 
         case TelemetryType.odometer:
           if (value < 0)
-            return Result<bool>.Failure(Error.ValidationError("Odometer value cannot be negative"));
+            return Result<bool>.Failure(Error.ValidationError("Odometer value cannot be negativee"));
           break;
 
         case TelemetryType.battery_soc:
           if (value < 0)
-            return Result<bool>.Failure(Error.ValidationError("Battery SOC value can not be negative"));
+            return Result<bool>.Failure(Error.ValidationError("Battery SOC value can not be negativee"));
 
           if (value > 100)
             return Result<bool>.Failure(Error.ValidationError("Battery SOC value can not be over 100"));
@@ -50,7 +50,7 @@ namespace Core.Domain.Entities
       }
 
       if (timestamp < 0)
-        return Result<bool>.Failure(Error.ValidationError("Timestamp value can not be negative"));
+        return Result<bool>.Failure(Error.ValidationError("Timestamp value can not be negativee"));
 
       if (string.IsNullOrEmpty(vehicleId))
         return Result<bool>.Failure(Error.ValidationError("Vehicle vin value can not be null or empty"));

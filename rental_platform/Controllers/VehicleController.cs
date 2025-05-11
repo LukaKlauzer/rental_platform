@@ -1,7 +1,7 @@
 using Application.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using rental_platform.Extentions;
+using rental_platform.Extensions;
 
 namespace rental_platform.Controllers
 {
@@ -10,8 +10,8 @@ namespace rental_platform.Controllers
   [Route("api/[controller]")]
   public class VehicleController : ControllerBase
   {
-    private readonly IVeachelService _vehicleService;
-    public VehicleController(IVeachelService vehicleService)
+    private readonly IVehicleService _vehicleService;
+    public VehicleController(IVehicleService vehicleService)
     {
       _vehicleService = vehicleService;
     }

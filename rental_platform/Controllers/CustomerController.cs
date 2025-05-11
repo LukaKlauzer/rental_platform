@@ -2,7 +2,7 @@ using Application.DTOs.Customer;
 using Application.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using rental_platform.Extentions;
+using rental_platform.Extensions;
 
 namespace rental_platform.Controllers
 {
