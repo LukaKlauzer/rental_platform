@@ -1,3 +1,5 @@
+
+
 services:
   # Database Service
   db:
@@ -6,13 +8,13 @@ services:
       - "1433:1433"
     environment:
       - ACCEPT_EULA=Y
-      - SA_PASSWORD=Str0ng_Passw0rd!
+      - SA_PASSWORD=${SA_PASSWORD}
     volumes:
       - mssql-data:/var/opt/mssql
     networks:
       - rental-network
     healthcheck:
-      test: ["CMD", "/bin/bash", "-c", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'Str0ng_Passw0rd!' -Q 'SELECT 1' || echo 'Failed query'"]
+      test: ["CMD", "/bin/bash", "-c", "/opt/mssql-tools/bin/sqlcmd -S localhost -U ${db_user} -P ${SA_PASSWORD} -Q 'SELECT 1' || echo 'Failed query'"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -30,7 +32,11 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080; #https://+:8081
-      - ConnectionStrings__DefaultConnection=Server=db;Database=RentalPlatform;User=sa;Password=Str0ng_Passw0rd!;TrustServerCertificate=True;
+      - ConnectionStrings__DefaultConnection=Server=db;Database=${db};User=${db_user};Password=${SA_PASSWORD};TrustServerCertificate=True;
+      - JwtSettings__Secret=${JWT_SECRET}
+      - JwtSettings__ExpiryMinutes=${JWT_EXPIRY_MINUTES}
+      - JwtSettings__Issuer=${JWT_ISSUER}
+      - JwtSettings__Audience=${JWT_AUDIENCE}
       - DOTNET_RUNNING_IN_CONTAINER=true
     depends_on:
       db:
@@ -52,7 +58,7 @@ services:
       dockerfile: Seeder/Dockerfile
     environment:
       - DOTNET_RUNNING_IN_CONTAINER=true
-      - ConnectionStrings__DefaultConnection=Server=db;Database=RentalPlatform;User=sa;Password=Str0ng_Passw0rd!;TrustServerCertificate=True;
+      - ConnectionStrings__DefaultConnection=Server=db;Database=${db};User=${db_user};Password=${SA_PASSWORD};TrustServerCertificate=True;
     depends_on:
       api:
         condition: service_healthy
