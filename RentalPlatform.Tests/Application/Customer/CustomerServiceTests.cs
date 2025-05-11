@@ -16,7 +16,6 @@ namespace RentalPlatform.Tests.Unit.Application.Customer
   public class CustomerServiceTests
   {
     private readonly Mock<ICustomerRepository> _mockCustomerRepository;
-    private readonly Mock<IRentalRepository> _mockRentalRepository;
     private readonly Mock<IVehicleRepository> _mockVehicleRepository;
     private readonly Mock<ICustomerMapper> _mockCustomerMapper;
     private readonly Mock<IJwtTokenGenerator> _mockJwtTokenGenerator;
@@ -28,7 +27,6 @@ namespace RentalPlatform.Tests.Unit.Application.Customer
       ILogger<CustomerService> logger = NullLogger<CustomerService>.Instance;
 
       _mockCustomerRepository = new Mock<ICustomerRepository>();
-      _mockRentalRepository = new Mock<IRentalRepository>();
       _mockVehicleRepository = new Mock<IVehicleRepository>();
       _mockCustomerMapper = new Mock<ICustomerMapper>();
       _mockJwtTokenGenerator = new Mock<IJwtTokenGenerator>();
@@ -37,7 +35,6 @@ namespace RentalPlatform.Tests.Unit.Application.Customer
       _customerService = new CustomerService(
           logger,
           _mockCustomerRepository.Object,
-          _mockRentalRepository.Object,
           _mockVehicleRepository.Object,
           _mockCustomerMapper.Object,
           _mockJwtTokenGenerator.Object,
@@ -112,7 +109,7 @@ namespace RentalPlatform.Tests.Unit.Application.Customer
     {
       // Arrange
       var customerId = 1;
-      _mockCustomerRepository.Setup(repo => repo.GetById(customerId, default))
+      _mockCustomerRepository.Setup(repo => repo.GetByIdWithRentals(customerId, default))
         .ReturnsAsync(Result<CustomerEntity>.Failure(Error.NotFound($"Customer with id {customerId} not found")));
 
       // Act
@@ -145,6 +142,10 @@ namespace RentalPlatform.Tests.Unit.Application.Customer
           customerId: customerId
         ).Value
       };
+      var rentalsField = typeof(CustomerEntity).GetField("_rentals",
+        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+      var customerRentals = (List<Rental>)rentalsField!.GetValue(customer)!;
+      customerRentals.AddRange(rentals);
 
       var vehicleVins = new List<string> { vehicle1Vin };
       var vehicles = new List<Vehicle>
@@ -159,11 +160,8 @@ namespace RentalPlatform.Tests.Unit.Application.Customer
         ).Value
       };
 
-      _mockCustomerRepository.Setup(repo => repo.GetById(customerId, default))
+      _mockCustomerRepository.Setup(repo => repo.GetByIdWithRentals(customerId, default))
         .ReturnsAsync(Result<CustomerEntity>.Success(customer));
-
-      _mockRentalRepository.Setup(repo => repo.GetByCustomerId(customerId, default))
-        .ReturnsAsync(Result<IEnumerable<Rental>>.Success(rentals));
 
       _mockVehicleRepository.Setup(repo => repo.GetByVins(vehicleVins, default))
         .ReturnsAsync(Result<IEnumerable<Vehicle>>.Success(vehicles));
