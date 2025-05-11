@@ -2,8 +2,8 @@
 {
   public class Entity
   {
-    public DateTime DateCreated { get; protected set; }
-    public DateTime DateModified { get; protected set; }
+    public DateTime DateCreated { get; set; }
+    public DateTime DateModified { get; set; }
   }
 
   public class EntityID : Entity, IEquatable<EntityID>
