@@ -1,6 +1,6 @@
 ﻿using Application.DTOs.Customer;
-using Application.Extensions;
 using Application.Interfaces.Authentification;
+using Application.Interfaces.Mapers;
 using Application.Interfaces.Persistence.SpecificRepository;
 using Application.Interfaces.Services;
 using Core.Result;
@@ -8,31 +8,35 @@ using Microsoft.Extensions.Logging;
 
 namespace Application.Services
 {
-  public class CustomerSevice : ICustomerService
+  public class CustomerService : ICustomerService
   {
-    private readonly ILogger<CustomerSevice> _logger;
+    private readonly ILogger<CustomerService> _logger;
     private readonly ICustomerRepository _customerRepository;
     private readonly IRentalRepository _rentalRepository;
     private readonly IVehicleRepository _vehicleRepository;
+    private readonly ICustomerMapper _customerMapper;
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
-    public CustomerSevice(
-      ILogger<CustomerSevice> logger,
+
+    public CustomerService(
+      ILogger<CustomerService> logger,
       ICustomerRepository customerRepository,
       IRentalRepository rentalRepository,
       IVehicleRepository vehicleRepository,
+      ICustomerMapper customerMapper,
       IJwtTokenGenerator jwtTokenGenerator)
     {
       _logger = logger;
       _customerRepository = customerRepository;
       _rentalRepository = rentalRepository;
       _vehicleRepository = vehicleRepository;
+      _customerMapper = customerMapper;
       _jwtTokenGenerator = jwtTokenGenerator;
     }
 
     public async Task<Result<CustomerReturnDto>> Create(CustomerCreateDto customerCreateDTO)
     {
       if (customerCreateDTO is null)
-        return Result<CustomerReturnDto>.Failure(Error.NullReferenceError("CustomerCreateDTO cannot be null."));
+        return Result<CustomerReturnDto>.Failure(Error.NullReferenceError("CustomerReturnDto cannot be null."));
 
       if (string.IsNullOrEmpty(customerCreateDTO.Name))
       {
@@ -40,52 +44,45 @@ namespace Application.Services
         return Result<CustomerReturnDto>.Failure(Error.ValidationError("Customer name can not be empty"));
       }
 
-      var customerToCreate = customerCreateDTO.ToCustomer();
-      if (customerToCreate is null)
-        return Result<CustomerReturnDto>.Failure(Error.NullReferenceError("Cusomer can not be null"));
+      var customerToCreateResult = _customerMapper.ToEntity(customerCreateDTO);
+      if (customerToCreateResult.IsFailure)
+        return Result<CustomerReturnDto>.Failure(customerToCreateResult.Error);
 
-      var newCustomerResult = await _customerRepository.Create(customerToCreate);
+      var newCustomerResult = await _customerRepository.Create(customerToCreateResult.Value);
 
       return newCustomerResult.Match(
-        customer =>
-        {
-          var returnDto = customer.ToReturnDto();
-          if (returnDto is null)
-            return Result<CustomerReturnDto>.Failure(Error.NullReferenceError("Customer mapping to DTO failed"));
-          return Result<CustomerReturnDto>.Success(returnDto);
-        },
+        customer => _customerMapper.ToReturnDto(customer),
         error => Result<CustomerReturnDto>.Failure(error));
     }
-    public async Task<Result<CustomerReturnDto>> Update(CustomerUpdateDto customerUpdateDTO)
+    public async Task<Result<CustomerReturnDto>> Update(CustomerUpdateDto customerUpdateDto)
     {
-      if (customerUpdateDTO is null)
+      if (customerUpdateDto is null)
         return Result<CustomerReturnDto>.Failure(Error.NullReferenceError("Customer update data cannot be null"));
 
-      if (customerUpdateDTO.Id <= 0)
+      if (customerUpdateDto.Id <= 0)
       {
         _logger.LogWarning("Customer update failed: Customer Id not valid");
         return Result<CustomerReturnDto>.Failure(Error.ValidationError("Invalid customer ID"));
       }
-      if (string.IsNullOrEmpty(customerUpdateDTO.Name))
+      if (string.IsNullOrEmpty(customerUpdateDto.Name))
       {
         _logger.LogWarning("Customer update failed: Customer name was null or empty");
         return Result<CustomerReturnDto>.Failure(Error.ValidationError("Customer name can not be empty"));
       }
+      var customerResult =  await _customerRepository.GetById(customerUpdateDto.Id);
+      if (customerResult.IsFailure)
+        return Result<CustomerReturnDto>.Failure(customerResult.Error);
 
-      var customer = customerUpdateDTO.ToCustomer();
-      if (customer is null)
-        return Result<CustomerReturnDto>.Failure(Error.MappingError("Failed to map DTO to customer entity"));
 
-      var customerResult = await _customerRepository.Update(customer);
+      var updatedResult = customerResult.Value.Update(customerUpdateDto.Name);
+      if (updatedResult.IsFailure)
+        return Result<CustomerReturnDto>.Failure(updatedResult.Error);
 
-      return customerResult.Match(
-        customer =>
-        {
-          var returnDto = customer.ToReturnDto();
-          if (returnDto is not null)
-            return Result<CustomerReturnDto>.Success(returnDto);
-          return Result<CustomerReturnDto>.Failure(Error.MappingError("Failed to map Customer entity to DTO"));
-        },
+
+      var customerUpdatedResult = await _customerRepository.Update(customerResult.Value);
+
+      return customerUpdatedResult.Match(
+        customer => _customerMapper.ToReturnDto(customer),
         error => Result<CustomerReturnDto>.Failure(error));
     }
     public async Task<Result<bool>> Delete(int id)
@@ -125,8 +122,8 @@ namespace Application.Services
         {
           _logger.LogError("Permanent delete failed for customer {CustomerId}: {ErrorMessage}",
             id, error.Message);
-        return Result<bool>.Failure(error);
-    });
+          return Result<bool>.Failure(error);
+        });
 
     }
     public async Task<Result<List<CustomerReturnDto>>> GetAll()
@@ -134,7 +131,7 @@ namespace Application.Services
       var allCustomers = await _customerRepository.GetAll();
 
       return allCustomers.Match(
-        customers => Result<List<CustomerReturnDto>>.Success(customers.ToListReturnDto()),
+        customers =>_customerMapper.ToReturnDtoList(customers),
         error => Result<List<CustomerReturnDto>>.Failure(error)
        );
     }
@@ -145,9 +142,10 @@ namespace Application.Services
       if (customerResult.IsFailure)
         return Result<CustomerReturnSingleDto>.Failure(customerResult.Error);
 
-      var returnDto = customerResult.Value.ToReturnSingleDto();
-      if (returnDto is null)
-        return Result<CustomerReturnSingleDto>.Failure(Error.NullReferenceError("Customer mapping to DTO failed"));
+      // Convert now to handle cases with no rentals or incomplete ones
+      var returnDtoResult = _customerMapper.ToReturnSingleDto(customerResult.Value);
+      if (returnDtoResult.IsFailure)
+        return returnDtoResult;
 
       // Get customer rentals
       var allRentals = await _rentalRepository.GetByCustomerId(id);
@@ -156,12 +154,12 @@ namespace Application.Services
 
       // Return early if no rentals
       if (!allRentals.Value.Any())
-        return Result<CustomerReturnSingleDto>.Success(returnDto);
+        return returnDtoResult;
 
       // Get all unique vehicles from rentals
       var vins = allRentals.Value.Select(x => x.VehicleId).Distinct().ToList();
       if (vins is null)
-        return Result<CustomerReturnSingleDto>.Success(returnDto);
+        return returnDtoResult;
 
       var vehiclesResult = await _vehicleRepository.GetByVins(vins);
       if (vehiclesResult.IsFailure)
@@ -197,12 +195,13 @@ namespace Application.Services
       }).Where(stat => stat != null).ToList();
 
       if (!rentalStats.Any())
-        return Result<CustomerReturnSingleDto>.Success(returnDto);
+        return returnDtoResult;
 
-      returnDto.TotalDistanceDriven = rentalStats.Sum(s => s!.Distance);
-      returnDto.TotalPrice = rentalStats.Sum(s => s!.Cost);
+      var totalDistanceDriven = rentalStats.Sum(s => s!.Distance);
+      var totalPrice = rentalStats.Sum(s => s!.Cost);
+      returnDtoResult = _customerMapper.ToReturnSingleDto(customerResult.Value, totalDistanceDriven, totalPrice);
 
-      return Result<CustomerReturnSingleDto>.Success(returnDto);
+      return returnDtoResult;
     }
 
     public async Task<Result<string>> Login(int id)

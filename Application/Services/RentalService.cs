@@ -1,10 +1,10 @@
 ﻿using Application.DTOs.Rental;
 using Core.Enums;
-using Application.Extensions;
 using Application.Interfaces.Persistence.SpecificRepository;
 using Application.Interfaces.Services;
 using Core.Result;
 using Microsoft.Extensions.Logging;
+using Application.Interfaces.Mapers;
 
 namespace Application.Services
 {
@@ -15,12 +15,14 @@ namespace Application.Services
     private readonly ICustomerRepository _customerRepository;
     private readonly IVehicleRepository _vehicleRepository;
     private readonly ITelemetryRepository _telemetryRepository;
+    private readonly IRentalMapper _rentalMapper;
     public RentalService(
       ILogger<RentalService> logger,
       IRentalRepository rentalRepository,
       ICustomerRepository customerRepository,
       IVehicleRepository vehicleRepository,
-      ITelemetryRepository telemetryRepository
+      ITelemetryRepository telemetryRepository,
+      IRentalMapper rentalMapper
       )
     {
       _rentalRepository = rentalRepository;
@@ -28,6 +30,7 @@ namespace Application.Services
       _vehicleRepository = vehicleRepository;
       _telemetryRepository = telemetryRepository;
       _logger = logger;
+      _rentalMapper = rentalMapper;
     }
 
     public async Task<Result<RentalReturnDto>> CreateReservation(RentalCreateDto rentalCreateDTO)
@@ -84,33 +87,35 @@ namespace Application.Services
 
       var batterySocEndResult = await _telemetryRepository.GetEarliestAfter(rentalCreateDTO.VehicleId, rentalCreateDTO.EndDate, TelemetryType.battery_soc);
 
-      var rentalCreate = rentalCreateDTO.ToRental();
-      if (rentalCreate is null)
-        return Result<RentalReturnDto>.Failure(Error.MappingError("Failed to map reservation DTO to reservation entity"));
+
 
       // Set the mandatory start values
-      rentalCreate.OdometerStart = odometerStartResult.Value.Value;
-      rentalCreate.BatterySOCStart = batterySocStartResult.Value.Value;
-
+      var odometerStart = odometerStartResult.Value.Value;
+      var batterySOCStart = batterySocStartResult.Value.Value;
+      float odometerEnd = 0, batterySOCEnd = 0;
       // Set end values if available
       if (odometerEndResult.IsSuccess)
-        rentalCreate.OdometerEnd = odometerEndResult.Value.Value;
+        odometerEnd = odometerEndResult.Value.Value;
 
       if (batterySocEndResult.IsSuccess)
-        rentalCreate.BatterySOCEnd = batterySocEndResult.Value.Value;
+        batterySOCEnd = batterySocEndResult.Value.Value;
 
-      var newReservation = await _rentalRepository.Create(rentalCreate);
+      var rentalToCreateResult = _rentalMapper.ToEntity(rentalCreateDTO, odometerStart, batterySOCStart, odometerEnd, batterySOCEnd);
+      if (rentalToCreateResult.IsFailure)
+        return Result<RentalReturnDto>.Failure(rentalToCreateResult.Error);
+
+      var newReservation = await _rentalRepository.Create(rentalToCreateResult.Value);
       return newReservation.Match(
         reservation =>
         {
-          var returnDto = reservation.ToReturnDto();
-          if (returnDto is not null)
+          var returnDtoResult = _rentalMapper.ToReturnDto(reservation);
+          if (returnDtoResult.IsSuccess)
           {
             _logger.LogInformation("Successfully created rental reservation with ID: {RentalId} for customer {CustomerId}, vehicle {VehicleId}, from {StartDate:d} to {EndDate:d}",
               reservation.ID, reservation.CustomerId, reservation.VehicleId, reservation.StartDate, reservation.EndDate);
-            return Result<RentalReturnDto>.Success(returnDto);
+            return Result<RentalReturnDto>.Success(returnDtoResult.Value);
           }
-          return Result<RentalReturnDto>.Failure(Error.MappingError("Failed to map reservation entity to reservation DTO"));
+          return Result<RentalReturnDto>.Failure(Error.MappingError($"Failed to map reservation entity to reservation DTO: {returnDtoResult.Error}"));
         },
         error =>
         {
@@ -125,7 +130,9 @@ namespace Application.Services
       if (rentalResult.IsFailure)
         return Result<bool>.Failure(rentalResult.Error);
 
-      rentalResult.Value.RentalStatus = RentalStatus.Cancelled;
+      var canceledResult = rentalResult.Value.Cancel();
+      if (canceledResult.IsFailure)
+        return canceledResult;
 
       var updatedRentalResult = await _rentalRepository.Update(rentalResult.Value);
 
@@ -140,9 +147,9 @@ namespace Application.Services
       var allRentalsResult = await _rentalRepository.GetAll();
 
       return allRentalsResult.Match(
-        rentals => Result<List<RentalReturnDto>>.Success(rentals.ToList().ToListRentalDto()),
+        rentals => _rentalMapper.ToReturnDtoList(rentals),
         error => Result<List<RentalReturnDto>>.Failure(error)
-        );
+      );
     }
 
     public async Task<Result<RentalReturnSingleDto>> GetById(int id)
@@ -151,19 +158,15 @@ namespace Application.Services
       if (rentalResult.IsFailure)
         return Result<RentalReturnSingleDto>.Failure(rentalResult.Error);
 
-      var returnDto = rentalResult.Value.ToReturnSingleDto();
-      if (returnDto is null)
-        return Result<RentalReturnSingleDto>.Failure(Error.MappingError("Faile to map rental entity to rental DTO"));
-
+      float? distanceTraveled = null;
       if (rentalResult.Value.OdometerEnd.HasValue)
-        returnDto.DistanceTraveled = rentalResult.Value.OdometerEnd.Value - rentalResult.Value.OdometerStart;
+        distanceTraveled = rentalResult.Value.OdometerEnd.Value - rentalResult.Value.OdometerStart;
 
-      returnDto.BatterySOCSAtStart = rentalResult.Value.BatterySOCStart;
+      var returnDtoResult = _rentalMapper.ToReturnSingleDto(rentalResult.Value, distanceTraveled);
+      if (returnDtoResult.IsFailure)
+        return Result<RentalReturnSingleDto>.Failure(returnDtoResult.Error);
 
-      if (rentalResult.Value.BatterySOCEnd.HasValue)
-        returnDto.BatterySOCAtEnd = rentalResult.Value.BatterySOCEnd.Value;
-
-      return Result<RentalReturnSingleDto>.Success(returnDto);
+      return Result<RentalReturnSingleDto>.Success(returnDtoResult.Value);
     }
 
     public async Task<Result<bool>> UpdateReservation(RentalUpdateDto rentalUpdateDTO)
@@ -179,16 +182,16 @@ namespace Application.Services
         return Result<bool>.Failure(Error.ValidationError("At least one field must be provided for update"));
       }
       if (!rentalUpdateDTO.StartDate.HasValue && !rentalUpdateDTO.EndDate.HasValue)
-      return Result<bool>.Failure(Error.ValidationError("Both start date and end date cannot be null for reservation update"));
+        return Result<bool>.Failure(Error.ValidationError("Both start date and end date cannot be null for reservation update"));
 
       var rentalResult = await _rentalRepository.GetById(rentalUpdateDTO.Id);
       if (rentalResult.IsFailure)
         return Result<bool>.Failure(rentalResult.Error);
 
-      if (rentalUpdateDTO.StartDate.HasValue)
-        rentalResult.Value.StartDate = rentalUpdateDTO.StartDate.Value;
-      if (rentalUpdateDTO.EndDate.HasValue)
-        rentalResult.Value.EndDate = rentalUpdateDTO.EndDate.Value;
+      // update on object level, not persistence
+      var updatedDatesResult = rentalResult.Value.UpdateDates(rentalUpdateDTO.StartDate, rentalUpdateDTO.EndDate);
+      if (updatedDatesResult.IsFailure)
+        return updatedDatesResult;
 
       var overlappingReservation = await IsOverlappingReservation(
         rentalResult.Value.CustomerId,
@@ -207,24 +210,25 @@ namespace Application.Services
         return Result<bool>.Failure(overlappingReservation.Error);
       }
 
-      if (rentalUpdateDTO.StartDate.HasValue)
-        rentalResult.Value.StartDate = rentalUpdateDTO.StartDate.Value;
-      if (rentalUpdateDTO.EndDate.HasValue)
-        rentalResult.Value.EndDate = rentalUpdateDTO.EndDate.Value;
-
       var updatedRental = await _rentalRepository.Update(rentalResult.Value);
 
       return updatedRental.Match(
-        rental => {
+        rental =>
+        {
           _logger.LogInformation("Successfully updated rental {RentalId} for customer {CustomerId}, " +
                "vehicle {VehicleId}, new dates {StartDate:d} to {EndDate:d}",
                rental.ID, rental.CustomerId, rental.VehicleId, rental.StartDate, rental.EndDate);
           return Result<bool>.Success(true);
-          },
+        },
         error => Result<bool>.Failure(error));
     }
 
-    private async Task<Result<bool>> IsOverlappingReservation(int customerId, string vehicleId, DateTime startDate, DateTime endDate, int? currentRentalId = null)
+    private async Task<Result<bool>> IsOverlappingReservation(
+      int customerId,
+      string vehicleId,
+      DateTime startDate,
+      DateTime endDate,
+      int? currentRentalId = null)
     {
       var customerReservationsInTimeFrameResult = await _rentalRepository.GetByCustomerIdInTimeFrame(customerId, startDate, endDate);
       if (customerReservationsInTimeFrameResult.IsFailure)
