@@ -1,6 +1,4 @@
-﻿using static System.Runtime.InteropServices.JavaScript.JSType;
-
-namespace Core.Result
+﻿namespace Core.Result
 {
   /// <summary>
   /// 

@@ -1,17 +1,42 @@
 ﻿using Core.Domain.Common;
+using Core.Domain.EntityValidation;
+using Core.Result;
 
 namespace Core.Domain.Entities
 {
   public class Vehicle : Entity
   {
-    public string Vin { get; set; } = string.Empty;
-    public string Make { get; set; } = string.Empty;
-    public string Model { get; set; } = string.Empty;
-    public int Year { get; set; }
-    public float PricePerKmInEuro { get; set; }
-    public float PricePerDayInEuro { get; set; }
+    private Vehicle() { }
+    private Vehicle(string vin, string make, string model, int year, float pricePerKmInEuro, float pricePerDayInEuro) 
+    {
+      Vin = vin;
+      Make = make;
+      Model = model;
+      Year = year;
+      PricePerKmInEuro = pricePerKmInEuro;
+      PricePerDayInEuro = pricePerDayInEuro;
+    }
+    public static Result<Vehicle> Create(string vin, string make, string model, int year, float pricePerKmInEuro, float pricePerDayInEuro)
+    {
+      var validationReult = VehicleValidator.ValidateVehicle(vin, make, model, year, pricePerKmInEuro, pricePerDayInEuro);
+      if (validationReult.IsFailure)
+        return Result<Vehicle>.Failure(validationReult.Error);
 
-    public ICollection<Rental> Rentals { get; set; } = new List<Rental>();
-    public ICollection<Telemetry> TelemetryRecords { get; set; } = new List<Telemetry>();
+      var vehicle = new Vehicle(vin, make, model, year, pricePerKmInEuro, pricePerDayInEuro);
+
+      return Result<Vehicle>.Success(vehicle);
+    }
+
+    
+
+    public string Vin { get; private set; } = string.Empty;
+    public string Make { get; private set; } = string.Empty;
+    public string Model { get; private set; } = string.Empty;
+    public int Year { get; private set; }
+    public float PricePerKmInEuro { get; private set; }
+    public float PricePerDayInEuro { get; private set; }
+
+    public ICollection<Rental> Rentals { get; private set; } = new List<Rental>();
+    public ICollection<Telemetry> TelemetryRecords { get; private set; } = new List<Telemetry>();
   }
 }

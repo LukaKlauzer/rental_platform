@@ -1,7 +1,7 @@
 ﻿using Core.Result;
 using Microsoft.AspNetCore.Mvc;
 
-namespace rental_platform.Extentions
+namespace rental_platform.Extensions
 {
   public static class ControllerExtensions
   {
@@ -21,8 +21,8 @@ namespace rental_platform.Extentions
         ErrorType.NullReference => controller.BadRequest(result.Error.Message),
         ErrorType.MappingError => controller.BadRequest(result.Error.Message),
         ErrorType.NotFound => controller.NotFound(result.Error.Message),
-        ErrorType.DatabaseReadError => controller.StatusCode(503, result.Error.Message),
-        ErrorType.DatabaseWriteError => controller.StatusCode(500, result.Error.Message),
+        ErrorType.DatabaseReadError => controller.BadRequest(result.Error.Message),
+        ErrorType.DatabaseWriteError => controller.BadRequest(result.Error.Message),
         ErrorType.ProcessingCsv => controller.BadRequest(result.Error.Message),
         _ => controller.StatusCode(500, result.Error.Message)
       };

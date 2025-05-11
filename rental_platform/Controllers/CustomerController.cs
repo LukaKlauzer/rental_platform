@@ -1,7 +1,8 @@
-using Core.DTOs.Customer;
-using Core.Interfaces.Services;
+using Application.DTOs.Customer;
+using Application.Interfaces.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using rental_platform.Extentions;
+using rental_platform.Extensions;
 
 namespace rental_platform.Controllers
 {
@@ -14,39 +15,42 @@ namespace rental_platform.Controllers
     {
       _customerService = customerService;
     }
-    [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CustomerCreateDTO customerCreateDTO)
-    {
-      if (!ModelState.IsValid)
-        return BadRequest(ModelState);
 
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] CustomerCreateDto customerCreateDTO)
+    {
       var result = await _customerService.Create(customerCreateDTO);
 
-      if (result.IsSuccess)
-        return CreatedAtAction(nameof(Get), new { id = result.Value.Id }, result.Value);
-
       return this.ToActionResult(result);
-
     }
 
-    [HttpPut]
-    public async Task<IActionResult> Update([FromBody] CustomerUpdateDTO customerUpdateDTO)
+    [HttpGet("login/{id}")]
+    public async Task<IActionResult> Login(int id)
     {
-      if (!ModelState.IsValid)
-        return BadRequest(ModelState);
+      var result = await _customerService.Login(id);
 
+      return this.ToActionResult(result);
+    }
+
+    [Authorize]
+    [HttpPut]
+    public async Task<IActionResult> Update([FromBody] CustomerUpdateDto customerUpdateDTO)
+    {
       var result = await _customerService.Update(customerUpdateDTO);
 
       return this.ToActionResult(result);
     }
+
+    [Authorize]
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
       var result = await _customerService.Delete(id);
-      
+
       return this.ToActionResult(result);
     }
 
+    [Authorize]
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
@@ -55,6 +59,7 @@ namespace rental_platform.Controllers
       return this.ToActionResult(result);
     }
 
+    [Authorize]
     [HttpGet("{id}")]
     public async Task<IActionResult> Get(int id)
     {

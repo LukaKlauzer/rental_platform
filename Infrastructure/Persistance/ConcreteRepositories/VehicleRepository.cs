@@ -1,6 +1,6 @@
 ﻿using Core.Domain.Entities;
-using Core.Interfaces.Persistence.GenericRepository;
-using Core.Interfaces.Persistence.SpecificRepository;
+using Application.Interfaces.Persistence.GenericRepository;
+using Application.Interfaces.Persistence.SpecificRepository;
 using Core.Result;
 using Infrastructure.Persistance.GenericRepository;
 

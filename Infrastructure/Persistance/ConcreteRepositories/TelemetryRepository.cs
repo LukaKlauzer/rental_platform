@@ -1,7 +1,7 @@
 ﻿using Core.Domain.Entities;
 using Core.Enums;
-using Core.Interfaces.Persistence.GenericRepository;
-using Core.Interfaces.Persistence.SpecificRepository;
+using Application.Interfaces.Persistence.GenericRepository;
+using Application.Interfaces.Persistence.SpecificRepository;
 using Core.Result;
 using Infrastructure.Persistance.GenericRepository;
 
@@ -45,6 +45,7 @@ namespace Infrastructure.Persistance.ConcreteRepositories
       {
         await _telemetryRepository.BeginTransactionAsync(cancellationToken);
         var savedTelemetries = await _telemetryRepository.AddAsync(telemetries, cancellationToken);
+        await _telemetryRepository.SaveChangesAsync();
         await _telemetryRepository.CommitTransactionAsync(cancellationToken);
 
 
@@ -115,7 +116,7 @@ namespace Infrastructure.Persistance.ConcreteRepositories
 
         if (mostRecentRecord is not null)
           return Result<Telemetry>.Success(mostRecentRecord);
-        return Result<Telemetry>.Failure(Error.NotFound($"Teletry for: '{dateTime}' not found"));
+        return Result<Telemetry>.Failure(Error.NotFound($"Telemetry for: '{dateTime}' not found"));
       }
       catch (Exception ex)
       {
@@ -139,7 +140,7 @@ namespace Infrastructure.Persistance.ConcreteRepositories
 
         if (earliestRecord is not null)
           return Result<Telemetry>.Success(earliestRecord);
-        return Result<Telemetry>.Failure(Error.NotFound($"Teletry for: '{dateTime}' not found"));
+        return Result<Telemetry>.Failure(Error.NotFound($"Telemetry for: '{dateTime}' not found"));
       }
       catch (Exception ex)
       {
