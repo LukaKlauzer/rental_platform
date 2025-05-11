@@ -1,6 +1,6 @@
 using Application;
 using Infrastructure;
-using rental_platform.Extentions;
+using rental_platform.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
