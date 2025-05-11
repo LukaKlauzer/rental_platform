@@ -1,12 +1,11 @@
 ﻿using Application.DTOs.Rental;
-using Core.Enums;
+using Application.Interfaces.DataValidation;
+using Application.Interfaces.Mapers;
 using Application.Interfaces.Persistence.SpecificRepository;
 using Application.Interfaces.Services;
+using Core.Enums;
 using Core.Result;
 using Microsoft.Extensions.Logging;
-using Application.Interfaces.Mapers;
-using Application.Interfaces.DataValidation;
-using Application.DTOs.Customer;
 
 namespace Application.Services
 {
