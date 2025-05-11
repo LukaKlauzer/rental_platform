@@ -1,10 +1,12 @@
 ﻿using Application.Interfaces.Persistence.GenericRepository;
+using Application.Interfaces.Persistence.SpecificRepository;
 using Core.Domain.Entities;
 using Infrastructure.Persistance.ConcreteRepositories;
 using Infrastructure.Persistance.GenericRepository;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+
 
 namespace Infrastructure
 {
