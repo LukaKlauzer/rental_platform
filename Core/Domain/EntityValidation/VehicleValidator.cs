@@ -1,4 +1,5 @@
-﻿using Core.Result;
+﻿using System.Text.RegularExpressions;
+using Core.Result;
 
 namespace Core.Domain.EntityValidation
 {
@@ -8,6 +9,10 @@ namespace Core.Domain.EntityValidation
     {
       if (string.IsNullOrEmpty(vin))
         return Result<bool>.Failure(Error.ValidationError("Vin can not be null or empty string"));
+
+      var vinRegex = new Regex("^[A-HJ-NPR-Z0-9]{17}$", RegexOptions.IgnoreCase);
+      if (!vinRegex.IsMatch(vin))
+        return Result<bool>.Failure(Error.ValidationError("VIN format is invalid."));
       // TODO more VIN validations... or create value object... and do validation in there
 
       if (string.IsNullOrEmpty(make))
