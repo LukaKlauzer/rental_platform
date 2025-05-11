@@ -1,4 +1,5 @@
 ﻿using Application.DTOs.Vehicle;
+using Application.Interfaces.DataValidation;
 using Application.Interfaces.Mapers;
 using Application.Interfaces.Persistence.SpecificRepository;
 using Application.Interfaces.Services;
@@ -12,14 +13,17 @@ namespace Application.Services
     private readonly IVehicleRepository _vehicleRepository;
     private readonly IRentalRepository _rentalRepository;
     private readonly IVehicleMapper _vehicleMapper;
+    private readonly IVehicleValidator _vehicleValidator; 
     public VehicleService(
       IVehicleRepository vehicleRepository,
       IRentalRepository rentalRepository,
-      IVehicleMapper vehicleMapper)
+      IVehicleMapper vehicleMapper,
+      IVehicleValidator vehicleValidator)
     {
       _vehicleRepository = vehicleRepository;
       _rentalRepository = rentalRepository;
       _vehicleMapper = vehicleMapper;
+      _vehicleValidator = vehicleValidator;
     }
 
     public async Task<Result<List<VehicleReturnDto>>> GetAll()
@@ -33,6 +37,10 @@ namespace Application.Services
 
     public async Task<Result<VehicleReturnSingleDto>> GetByVin(string vin)
     {
+      var validationResult = _vehicleValidator.ValidateGetByVin(vin);
+      if (validationResult.IsFailure)
+        return Result<VehicleReturnSingleDto>.Failure(validationResult.Error);
+
       var vehicleResult = await _vehicleRepository.GetByVin(vin);
       if (vehicleResult.IsFailure)
         return Result<VehicleReturnSingleDto>.Failure(vehicleResult.Error);

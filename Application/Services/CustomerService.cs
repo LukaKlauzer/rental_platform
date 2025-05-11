@@ -1,5 +1,6 @@
 ﻿using Application.DTOs.Customer;
 using Application.Interfaces.Authentification;
+using Application.Interfaces.DataValidation;
 using Application.Interfaces.Mapers;
 using Application.Interfaces.Persistence.SpecificRepository;
 using Application.Interfaces.Services;
@@ -16,6 +17,7 @@ namespace Application.Services
     private readonly IVehicleRepository _vehicleRepository;
     private readonly ICustomerMapper _customerMapper;
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
+    private readonly ICustomerValidator _customerValidator;
 
     public CustomerService(
       ILogger<CustomerService> logger,
@@ -23,7 +25,8 @@ namespace Application.Services
       IRentalRepository rentalRepository,
       IVehicleRepository vehicleRepository,
       ICustomerMapper customerMapper,
-      IJwtTokenGenerator jwtTokenGenerator)
+      IJwtTokenGenerator jwtTokenGenerator,
+      ICustomerValidator customerValidator)
     {
       _logger = logger;
       _customerRepository = customerRepository;
@@ -31,18 +34,15 @@ namespace Application.Services
       _vehicleRepository = vehicleRepository;
       _customerMapper = customerMapper;
       _jwtTokenGenerator = jwtTokenGenerator;
+      _customerValidator = customerValidator;
     }
 
     public async Task<Result<CustomerReturnDto>> Create(CustomerCreateDto customerCreateDTO)
     {
-      if (customerCreateDTO is null)
-        return Result<CustomerReturnDto>.Failure(Error.NullReferenceError("CustomerReturnDto cannot be null."));
 
-      if (string.IsNullOrEmpty(customerCreateDTO.Name))
-      {
-        _logger.LogWarning("Customer creation failed: Customer name was empty or null");
-        return Result<CustomerReturnDto>.Failure(Error.ValidationError("Customer name can not be empty"));
-      }
+      var validationResult = _customerValidator.ValidateCreate(customerCreateDTO);
+      if (validationResult.IsFailure)
+        return Result<CustomerReturnDto>.Failure(validationResult.Error);
 
       var customerToCreateResult = _customerMapper.ToEntity(customerCreateDTO);
       if (customerToCreateResult.IsFailure)
@@ -56,19 +56,10 @@ namespace Application.Services
     }
     public async Task<Result<CustomerReturnDto>> Update(CustomerUpdateDto customerUpdateDto)
     {
-      if (customerUpdateDto is null)
-        return Result<CustomerReturnDto>.Failure(Error.NullReferenceError("Customer update data cannot be null"));
+      var validationResult = _customerValidator.ValidateUpdate(customerUpdateDto);
+      if (validationResult.IsFailure)
+        return Result<CustomerReturnDto>.Failure(validationResult.Error);
 
-      if (customerUpdateDto.Id <= 0)
-      {
-        _logger.LogWarning("Customer update failed: Customer Id not valid");
-        return Result<CustomerReturnDto>.Failure(Error.ValidationError("Invalid customer ID"));
-      }
-      if (string.IsNullOrEmpty(customerUpdateDto.Name))
-      {
-        _logger.LogWarning("Customer update failed: Customer name was null or empty");
-        return Result<CustomerReturnDto>.Failure(Error.ValidationError("Customer name can not be empty"));
-      }
       var customerResult =  await _customerRepository.GetById(customerUpdateDto.Id);
       if (customerResult.IsFailure)
         return Result<CustomerReturnDto>.Failure(customerResult.Error);
@@ -87,6 +78,10 @@ namespace Application.Services
     }
     public async Task<Result<bool>> Delete(int id)
     {
+      var validationResult = _customerValidator.ValidateDelete(id);
+      if (validationResult.IsFailure)
+        return validationResult;
+
       // Check if the customer exists
       var customerResult = await _customerRepository.GetById(id);
       if (customerResult.IsFailure)
