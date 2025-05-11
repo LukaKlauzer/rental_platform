@@ -51,5 +51,14 @@ namespace Application.DTOs.Customer
       }
       return Result<bool>.Success(true);
     }
+    public Result<bool> ValidateLogin(int id)
+    {
+      if (id <= 0)
+      {
+        _logger.LogWarning("Customer login validation failed: invalid Customer ID {CustomerId}", id);
+        return Result<bool>.Failure(Error.ValidationError("Invalid customer ID"));
+      }
+      return Result<bool>.Success(true);
+    }
   }
 }

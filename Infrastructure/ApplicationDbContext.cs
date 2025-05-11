@@ -46,7 +46,7 @@ namespace Infrastructure
         entity.Property(e => e.BatterySOCStart).IsRequired();
 
         entity.HasOne(r => r.Customer)
-              .WithMany(r => r.RentalRecords)
+              .WithMany(r => r.Rentals)
               .HasForeignKey(r=>r.CustomerId)
               .OnDelete(DeleteBehavior.Restrict);
 

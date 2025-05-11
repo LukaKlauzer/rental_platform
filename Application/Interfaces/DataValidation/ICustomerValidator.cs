@@ -8,5 +8,6 @@ namespace Application.Interfaces.DataValidation
     Result<bool> ValidateCreate(CustomerCreateDto dto);
     Result<bool> ValidateUpdate(CustomerUpdateDto dto);
     Result<bool> ValidateDelete(int id);
+    Result<bool> ValidateLogin(int id);
   }
 }

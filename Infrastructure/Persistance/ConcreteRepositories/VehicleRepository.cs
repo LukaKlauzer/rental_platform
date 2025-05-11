@@ -82,20 +82,43 @@ namespace Infrastructure.Persistance.ConcreteRepositories
       }
     }
 
-    public async Task<Result<Vehicle>> GetByVin(string vin, CancellationToken cancellationToken = default)
+    private async Task<Result<Vehicle>> GetVehicleBySpecificationAsync(
+     ISpecificationBuilder<Vehicle> specification,
+     string vin,
+     CancellationToken cancellationToken = default)
     {
       try
       {
-        var specification = new SpecificationBuilder<Vehicle>(vehicle => vehicle.Vin == vin);
         var vehicle = await _vehicleRepository.GetFirstAsync(specification, cancellationToken);
+
         if (vehicle is not null)
           return Result<Vehicle>.Success(vehicle);
+
         return Result<Vehicle>.Failure(Error.NotFound($"Vehicle with vin: {vin} not found"));
       }
       catch (Exception ex)
       {
         return Result<Vehicle>.Failure(Error.DatabaseReadError($"Error retrieving vehicle with vin {vin}, {ex.Message}"));
       }
+    }
+
+    public async Task<Result<Vehicle>> GetByVin(string vin, CancellationToken cancellationToken = default)
+    {
+      var specification = new SpecificationBuilder<Vehicle>(vehicle => vehicle.Vin == vin);
+      return await GetVehicleBySpecificationAsync(specification, vin, cancellationToken);
+    }
+    public async Task<Result<Vehicle>> GetByVinWithRentals(string vin, CancellationToken cancellationToken = default)
+    {
+      var specification = new SpecificationBuilder<Vehicle>(vehicle => vehicle.Vin == vin).AddIncludes(r=>r.Rentals);
+      return await GetVehicleBySpecificationAsync(specification, vin, cancellationToken);
+    }
+    
+    public async Task<Result<Vehicle>> GetByVinWithTelemetryAndRentals(string vin, CancellationToken cancellationToken = default)
+    {
+      var specification = new SpecificationBuilder<Vehicle>(vehicle => vehicle.Vin == vin)
+          .AddIncludes(v => v.TelemetryRecords).AddIncludes(v=>v.Rentals);
+
+      return await GetVehicleBySpecificationAsync(specification, vin, cancellationToken);
     }
 
     public async Task<Result<IEnumerable<Vehicle>>> GetByVins(List<string> vins, CancellationToken cancellationToken = default)

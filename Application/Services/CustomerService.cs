@@ -13,7 +13,6 @@ namespace Application.Services
   {
     private readonly ILogger<CustomerService> _logger;
     private readonly ICustomerRepository _customerRepository;
-    private readonly IRentalRepository _rentalRepository;
     private readonly IVehicleRepository _vehicleRepository;
     private readonly ICustomerMapper _customerMapper;
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
@@ -22,7 +21,6 @@ namespace Application.Services
     public CustomerService(
       ILogger<CustomerService> logger,
       ICustomerRepository customerRepository,
-      IRentalRepository rentalRepository,
       IVehicleRepository vehicleRepository,
       ICustomerMapper customerMapper,
       IJwtTokenGenerator jwtTokenGenerator,
@@ -30,7 +28,6 @@ namespace Application.Services
     {
       _logger = logger;
       _customerRepository = customerRepository;
-      _rentalRepository = rentalRepository;
       _vehicleRepository = vehicleRepository;
       _customerMapper = customerMapper;
       _jwtTokenGenerator = jwtTokenGenerator;
@@ -82,44 +79,33 @@ namespace Application.Services
       if (validationResult.IsFailure)
         return validationResult;
 
-      // Check if the customer exists
-      var customerResult = await _customerRepository.GetById(id);
+      var customerResult = await _customerRepository.GetByIdWithRentals(id);
       if (customerResult.IsFailure)
         return Result<bool>.Failure(customerResult.Error);
 
-      // Check if customer has any rentals
-      var rentalsResult = await _rentalRepository.GetByCustomerId(id);
-      if (rentalsResult.IsFailure)
-        return Result<bool>.Failure(rentalsResult.Error);
+      var customer = customerResult.Value;
 
-      // If customer has rentals, perform soft delete
-      if (rentalsResult.Value.Any())
+      // If customer has rentals, soft delete
+      if (customer.HasRentals())
       {
-        _logger.LogInformation("Performing soft delete for customer {CustomerId} because they have {RentalCount} existing rentals",
-          id, rentalsResult.Value.Count());
-        var softDeleteResult = await _customerRepository.SoftDelete(id);
-        if (softDeleteResult.IsFailure)
-          return Result<bool>.Failure(softDeleteResult.Error);
+        _logger.LogInformation("Soft deleting customer {CustomerId} with {RentalCount} rentals",
+            id, customer.Rentals.Count);
 
-        return Result<bool>.Success(true);
+        customer.MarkAsDeleted();
+
+        var updateResult = await _customerRepository.SoftDelete(customer);
+        return updateResult.Match(
+            _ => Result<bool>.Success(true),
+            error => Result<bool>.Failure(error));
       }
 
-      // If no rentals, we can permanently delete customer, not necessarily a good idea... but YOLO
+      // No rentals, hard delete
+      _logger.LogInformation("Hard deleting customer {CustomerId} with no rentals", id);
+
       var deleteResult = await _customerRepository.Delete(id);
-
       return deleteResult.Match(
-        success =>
-        {
-          _logger.LogInformation("Successfully deleted customer {CustomerId} permanently", id);
-          return Result<bool>.Success(true);
-        },
-        error =>
-        {
-          _logger.LogError("Permanent delete failed for customer {CustomerId}: {ErrorMessage}",
-            id, error.Message);
-          return Result<bool>.Failure(error);
-        });
-
+          _ => Result<bool>.Success(true),
+          error => Result<bool>.Failure(error));
     }
     public async Task<Result<List<CustomerReturnDto>>> GetAll()
     {
@@ -132,80 +118,51 @@ namespace Application.Services
     }
     public async Task<Result<CustomerReturnSingleDto>> GetById(int id)
     {
-      // Get customer
-      var customerResult = await _customerRepository.GetById(id);
+      var customerResult = await _customerRepository.GetByIdWithRentals(id);
       if (customerResult.IsFailure)
         return Result<CustomerReturnSingleDto>.Failure(customerResult.Error);
 
-      // Convert now to handle cases with no rentals or incomplete ones
-      var returnDtoResult = _customerMapper.ToReturnSingleDto(customerResult.Value);
-      if (returnDtoResult.IsFailure)
-        return returnDtoResult;
+      var customer = customerResult.Value;
 
-      // Get customer rentals
-      var allRentals = await _rentalRepository.GetByCustomerId(id);
-      if (allRentals.IsFailure)
-        return Result<CustomerReturnSingleDto>.Failure(allRentals.Error);
+      if (!customer.HasRentals())
+        return _customerMapper.ToReturnSingleDto(customer);
+      
+      // Get vehicles for completed rentals
+      var completedRentals = customer.Rentals
+          .Where(r => r.IsCompleted())
+          .ToList();
 
-      // Return early if no rentals
-      if (!allRentals.Value.Any())
-        return returnDtoResult;
+      if (!completedRentals.Any())
+        return _customerMapper.ToReturnSingleDto(customer);
+      
+      // Get unique vehicle VINs
+      var vehicleIds = completedRentals
+          .Select(r => r.VehicleId)
+          .Distinct()
+          .ToList();
 
-      // Get all unique vehicles from rentals
-      var vins = allRentals.Value.Select(x => x.VehicleId).Distinct().ToList();
-      if (vins is null)
-        return returnDtoResult;
-
-      var vehiclesResult = await _vehicleRepository.GetByVins(vins);
+      var vehiclesResult = await _vehicleRepository.GetByVins(vehicleIds);
       if (vehiclesResult.IsFailure)
         return Result<CustomerReturnSingleDto>.Failure(vehiclesResult.Error);
 
-      var vehicleDict = vehiclesResult.Value.ToDictionary(v => v.Vin);
+      var statisticsResult = customer.CalculateStatistics(
+          vehiclesResult.Value);
 
-      var completedRentals = allRentals.Value
-      .Where(r => r.OdometerEnd.HasValue && r.BatterySOCEnd.HasValue)
-      .ToList();
+      if (statisticsResult.IsFailure)
+        return Result<CustomerReturnSingleDto>.Failure(statisticsResult.Error);
 
-      // Calculate statistics
-      var rentalStats = completedRentals.Select(rental =>
-      {
-        if (!vehicleDict.TryGetValue(rental.VehicleId, out var vehicle))
-          return null;
+      var statistics = statisticsResult.Value;
 
-        float distance = rental.OdometerEnd!.Value - rental.OdometerStart;
-        int days = Math.Max(1, (int)Math.Ceiling((rental.EndDate - rental.StartDate).TotalDays));
-        float batteryDelta = rental.BatterySOCEnd!.Value - rental.BatterySOCStart;
-
-        float distanceCost = distance * vehicle.PricePerKmInEuro;
-        float dailyCost = days * vehicle.PricePerDayInEuro;
-        float batteryPenalty = Math.Max(0, (-batteryDelta)) * 0.2f;
-
-        return new
-        {
-          Distance = distance,
-          Days = days,
-          Cost = distanceCost + dailyCost + batteryPenalty,
-          Vehicle = vehicle
-        };
-      }).Where(stat => stat != null).ToList();
-
-      if (!rentalStats.Any())
-        return returnDtoResult;
-
-      var totalDistanceDriven = rentalStats.Sum(s => s!.Distance);
-      var totalPrice = rentalStats.Sum(s => s!.Cost);
-      returnDtoResult = _customerMapper.ToReturnSingleDto(customerResult.Value, totalDistanceDriven, totalPrice);
-
-      return returnDtoResult;
+      return _customerMapper.ToReturnSingleDto(
+          customer,
+          statistics.TotalDistanceDriven,
+          statistics.TotalPrice);
     }
-
     public async Task<Result<string>> Login(int id)
     {
-      if (id <= 0)
-      {
-        _logger.LogWarning("Customer update failed: Customer Id not valid");
-        return Result<string>.Failure(Error.ValidationError("Invalid customer ID"));
-      }
+      var validationResult = _customerValidator.ValidateLogin(id);
+      if (validationResult.IsFailure)
+        return Result<string>.Failure(validationResult.Error);
 
       var customerResult = await _customerRepository.GetById(id);
       if (customerResult.IsFailure)

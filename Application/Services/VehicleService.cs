@@ -3,7 +3,6 @@ using Application.Interfaces.DataValidation;
 using Application.Interfaces.Mapers;
 using Application.Interfaces.Persistence.SpecificRepository;
 using Application.Interfaces.Services;
-using Core.Enums;
 using Core.Result;
 
 namespace Application.Services
@@ -11,17 +10,14 @@ namespace Application.Services
   public class VehicleService : IVehicleService
   {
     private readonly IVehicleRepository _vehicleRepository;
-    private readonly IRentalRepository _rentalRepository;
     private readonly IVehicleMapper _vehicleMapper;
     private readonly IVehicleValidator _vehicleValidator; 
     public VehicleService(
       IVehicleRepository vehicleRepository,
-      IRentalRepository rentalRepository,
       IVehicleMapper vehicleMapper,
       IVehicleValidator vehicleValidator)
     {
       _vehicleRepository = vehicleRepository;
-      _rentalRepository = rentalRepository;
       _vehicleMapper = vehicleMapper;
       _vehicleValidator = vehicleValidator;
     }
@@ -34,64 +30,32 @@ namespace Application.Services
         vehicles => _vehicleMapper.ToReturnDtoList(vehicles),
         error => Result<List<VehicleReturnDto>>.Failure(error));
     }
-
     public async Task<Result<VehicleReturnSingleDto>> GetByVin(string vin)
     {
       var validationResult = _vehicleValidator.ValidateGetByVin(vin);
       if (validationResult.IsFailure)
         return Result<VehicleReturnSingleDto>.Failure(validationResult.Error);
 
-      var vehicleResult = await _vehicleRepository.GetByVin(vin);
+      var vehicleResult = await _vehicleRepository.GetByVinWithRentals(vin);
       if (vehicleResult.IsFailure)
         return Result<VehicleReturnSingleDto>.Failure(vehicleResult.Error);
 
-      var allRentalsResult = await _rentalRepository.GetByVin(vin);
-      if (allRentalsResult.IsFailure)
-        return Result<VehicleReturnSingleDto>.Failure(allRentalsResult.Error);
+      var vehicle = vehicleResult.Value;
 
-      // Convert now to handle cases with no rentals or incomplete ones
-      var returnDtoResult = _vehicleMapper.ToReturnSingleDto(vehicleResult.Value);
-      if (returnDtoResult.IsFailure)
-        return Result<VehicleReturnSingleDto>.Failure(returnDtoResult.Error);
-
-      if (!allRentalsResult.Value.Any())
-        return Result<VehicleReturnSingleDto>.Success(returnDtoResult.Value);
+      if (!vehicle.Rentals.Any() || !vehicle.Rentals.Any(r => r.IsCompleted()))
+        return _vehicleMapper.ToReturnSingleDto(vehicle);
       
+      var statisticsResult = vehicle.CalculateStatistics();
+      if (statisticsResult.IsFailure)
+        return Result<VehicleReturnSingleDto>.Failure(statisticsResult.Error);
 
-      var completedRentals = allRentalsResult.Value.Where(rental =>
-        rental.OdometerEnd.HasValue &&
-        rental.BatterySOCEnd.HasValue &&
-        rental.RentalStatus == RentalStatus.Ordered).ToList();
+      var statistics = statisticsResult.Value;
 
-      if (!completedRentals.Any())
-        return Result<VehicleReturnSingleDto>.Success(returnDtoResult.Value);
-
-      // Calculate statistics
-      var rentalStats = completedRentals.Select(rental =>
-      {
-        float distance = rental.OdometerEnd!.Value - rental.OdometerStart;
-        int days = Math.Max(1, (int)Math.Ceiling((rental.EndDate - rental.StartDate).TotalDays));
-        float batteryDelta = rental.BatterySOCEnd!.Value - rental.BatterySOCStart;
-
-        float distanceCost = distance * vehicleResult.Value.PricePerKmInEuro;
-        float dailyCost = days * vehicleResult.Value.PricePerDayInEuro;
-        float batteryPenalty = Math.Max(0, -batteryDelta) * 0.2f;
-
-        return new
-        {
-          Distance = distance,
-          Income = distanceCost + dailyCost + batteryPenalty
-        };
-      }).ToList();
-      
-      var totalDistanceDriven = rentalStats.Sum(d => d.Distance);
-      var totalRentalCount = rentalStats.Count;
-      var totalRentalIncome = rentalStats.Sum(d => d.Income);
-
-      returnDtoResult = _vehicleMapper.ToReturnSingleDto(
-        vehicleResult.Value, totalDistanceDriven, totalRentalCount, totalRentalIncome);
-      
-      return returnDtoResult;
+      return _vehicleMapper.ToReturnSingleDto(
+          vehicle,
+          statistics.TotalDistanceDriven,
+          statistics.TotalRentalCount,
+          statistics.TotalRentalIncome);
 
     }
   }

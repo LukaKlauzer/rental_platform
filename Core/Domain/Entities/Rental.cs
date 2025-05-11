@@ -46,7 +46,6 @@ namespace Core.Domain.Entities
       CustomerId = customerId;
 
       RentalStatus = RentalStatus.Ordered;
-
     }
 
     public static Result<Rental> Create(
@@ -78,32 +77,117 @@ namespace Core.Domain.Entities
       return Result<bool>.Success(true);
 
     }
-
-    public Result<bool> UpdateDates(DateTime? startDate = null, DateTime? endDate = null)
+    public Result<bool> CanUpdateDates(
+        DateTime newStartDate,
+        DateTime newEndDate,
+        Customer customer,
+        Vehicle vehicle)
     {
-      if (startDate is null && endDate is null)
-        return Result<bool>.Failure(Error.ValidationError("At least one date must be provided for update"));
+      if (RentalStatus != RentalStatus.Ordered)
+        return Result<bool>.Failure(
+            Error.ValidationError("Cannot update dates for non-active rental"));
 
-      var originalStartDate = StartDate;
-      var originalEndDate = EndDate;
+      // Check if customer has other overlapping rentals (excluding this one)
+      var customerHasOtherOverlap = customer.Rentals
+          .Where(r => r.ID != this.ID && r.RentalStatus == RentalStatus.Ordered)
+          .Any(r => r.OverlapsWith(newStartDate, newEndDate));
 
-      if (startDate.HasValue)
-        StartDate = startDate.Value;
+      if (customerHasOtherOverlap)
+        return Result<bool>.Failure(
+            Error.ValidationError("Customer has another rental in this time period"));
 
-      if (endDate.HasValue)
-        EndDate = endDate.Value;
+      // Check if vehicle has other overlapping rentals (excluding this one)
+      var vehicleHasOtherOverlap = vehicle.Rentals
+          .Where(r => r.ID != this.ID && r.RentalStatus == RentalStatus.Ordered)
+          .Any(r => r.OverlapsWith(newStartDate, newEndDate));
 
-      var validationResult = RentalValidator.ValidateDates(startDate: StartDate, endDate: EndDate);
-      if (validationResult.IsFailure)
-      {
-        StartDate = originalStartDate;
-        EndDate = originalEndDate;
-
-        return validationResult;
-      }
+      if (vehicleHasOtherOverlap)
+        return Result<bool>.Failure(
+            Error.ValidationError("Vehicle is not available for the new dates"));
 
       return Result<bool>.Success(true);
     }
+    public Result<bool> UpdateDates(
+        DateTime? newStartDate,
+        DateTime? newEndDate,
+        Customer customer,
+        Vehicle vehicle)
+    {
+      if (!newStartDate.HasValue && !newEndDate.HasValue)
+        return Result<bool>.Failure(
+            Error.ValidationError("At least one date must be provided for update"));
 
+      var effectiveStartDate = newStartDate ?? StartDate;
+      var effectiveEndDate = newEndDate ?? EndDate;
+
+      var validationResult = RentalValidator.ValidateDates(effectiveStartDate, effectiveEndDate);
+      if (validationResult.IsFailure)
+        return validationResult;
+
+      // Check if update is allowed
+      var canUpdateResult = CanUpdateDates(effectiveStartDate, effectiveEndDate, customer, vehicle);
+      if (canUpdateResult.IsFailure)
+        return canUpdateResult;
+
+      StartDate = effectiveStartDate;
+      EndDate = effectiveEndDate;
+
+      return Result<bool>.Success(true);
+    }
+    public bool IsCompleted()
+    {
+      return OdometerEnd.HasValue &&
+             BatterySOCEnd.HasValue &&
+             RentalStatus == RentalStatus.Ordered;
+    }
+    public bool IsCancelled() => RentalStatus == RentalStatus.Cancelled;
+
+    public Result<RentalCost> CalculateCost(Vehicle vehicle)
+    {
+      if (IsCancelled())
+        return Result<RentalCost>.Failure(
+            Error.ValidationError("Cannot calculate cost for cancelled rental"));
+
+      if (!IsCompleted())
+        return Result<RentalCost>.Failure(
+            Error.ValidationError("Cannot calculate cost for incomplete rental"));
+
+      var distance = OdometerEnd!.Value - OdometerStart;
+      var days = Math.Max(1, (int)Math.Ceiling((EndDate - StartDate).TotalDays));
+      var batteryDelta = BatterySOCEnd!.Value - BatterySOCStart;
+
+      var distanceCost = distance * vehicle.PricePerKmInEuro;
+      var dailyCost = days * vehicle.PricePerDayInEuro;
+      var batteryPenalty = Math.Max(0, -batteryDelta) * 0.2f;
+
+      var totalCost = distanceCost + dailyCost + batteryPenalty;
+
+      return Result<RentalCost>.Success(
+          new RentalCost(distance, days, totalCost, distanceCost, dailyCost, batteryPenalty));
+    }
+    public Result<float> GetDistanceTraveled()
+    {
+      if (IsCancelled())
+        return Result<float>.Failure(
+            Error.ValidationError("Cannot calculate distance for cancelled rental"));
+
+      // Technically incorrect, but leaving as-is for now... 2025-05-11 @ 08:03 PM
+      if (!IsCompleted())
+      return Result<float>.Failure(
+          Error.ValidationError("Cannot calculate distance for incomplete rental"));
+
+      var distance = OdometerEnd!.Value - OdometerStart;
+      return Result<float>.Success(distance);
+    }
+    public bool OverlapsWith(DateTime otherStartDate, DateTime otherEndDate) =>
+      StartDate <= otherEndDate && otherStartDate <= EndDate;
+
+    public record RentalCost(
+    float Distance,
+    int Days,
+    float TotalCost,
+    float DistanceCost,
+    float DailyCost,
+    float BatteryPenalty);
   }
 }

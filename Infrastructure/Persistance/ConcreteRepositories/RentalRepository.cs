@@ -41,19 +41,39 @@ namespace Infrastructure.Persistance.ConcreteRepositories
         return Result<IEnumerable<Rental>>.Failure(Error.DatabaseReadError($"Failed to retrieve Rentals: {ex.Message}"));
       }
     }
-    public async Task<Result<Rental>> GetById(int id, CancellationToken cancellationToken = default)
+    private async Task<Result<Rental>> GetRentalBySpecificationAsync(
+    ISpecificationBuilder<Rental> specification,
+    int id,
+    CancellationToken cancellationToken = default)
     {
       try
       {
-        var rental = await _rentalRepository.GetByIdAsync(id, cancellationToken);
+        var rental = await _rentalRepository.GetFirstAsync(specification, cancellationToken);
+
         if (rental is not null)
           return Result<Rental>.Success(rental);
+
         return Result<Rental>.Failure(Error.NotFound($"Rental with id {id} not found"));
       }
       catch (Exception ex)
       {
-        return Result<Rental>.Failure(Error.DatabaseReadError($"Faile to retrieve rental with id: {id} {ex.Message}"));
+        return Result<Rental>.Failure(Error.DatabaseReadError($"Failed to retrieve rental with id: {id} {ex.Message}"));
       }
+    }
+
+    public async Task<Result<Rental>> GetById(int id, CancellationToken cancellationToken = default)
+    {
+      var specification = new SpecificationBuilder<Rental>(rental => rental.ID == id);
+      return await GetRentalBySpecificationAsync(specification, id, cancellationToken);
+    }
+
+    public async Task<Result<Rental>> GetByIdWithCustomerAndVehicle(int id, CancellationToken cancellationToken = default)
+    {
+      var specification = new SpecificationBuilder<Rental>(rental => rental.ID == id)
+          .AddIncludes(r => r.Customer)
+          .AddIncludes(r => r.Vehicle);
+
+      return await GetRentalBySpecificationAsync(specification, id, cancellationToken);
     }
 
     public async Task<Result<Rental>> Update(Rental rental, CancellationToken cancellationToken = default)

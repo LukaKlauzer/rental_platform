@@ -2,6 +2,7 @@
 using Application.Interfaces.Persistence.GenericRepository;
 using Application.Interfaces.Persistence.SpecificRepository;
 using Core.Result;
+using Infrastructure.Persistance.GenericRepository;
 
 namespace Infrastructure.Persistance.ConcreteRepositories
 {
@@ -60,29 +61,19 @@ namespace Infrastructure.Persistance.ConcreteRepositories
         return Result<bool>.Failure(Error.DatabaseWriteError($"Failed to delete customer with id {id}: {ex.Message}"));
       }
     }
-    public async Task<Result<bool>> SoftDelete(int id, CancellationToken cancellationToken = default)
+    public async Task<Result<bool>> SoftDelete(Customer customer, CancellationToken cancellationToken = default)
     {
       try
       {
-        // Get the customer to mark as deleted
-        var customer = await _customerRepository.GetByIdAsync(id, cancellationToken);
-
-        if (customer is null)
-          return Result<bool>.Failure(Error.NotFound($"Customer with id {id} not found"));
-
-        // Mark as deleted
-        customer.MarkAsDeleted();
-
         await _customerRepository.AddOrUpdateAsync(customer, cancellationToken);
 
         return Result<bool>.Success(true);
       }
       catch (Exception ex)
       {
-        return Result<bool>.Failure(Error.DatabaseWriteError($"Failed to soft delete customer with id {id}: {ex.Message}"));
+        return Result<bool>.Failure(Error.DatabaseWriteError($"Failed to soft delete customer with id {customer.ID}: {ex.Message}"));
       }
     }
-
     public async Task<Result<List<Customer>>> GetAll(CancellationToken cancellationToken = default)
     {
       try
@@ -95,22 +86,34 @@ namespace Infrastructure.Persistance.ConcreteRepositories
         return Result<List<Customer>>.Failure(Error.DatabaseReadError($"Failed to retrieve customers: {ex.Message}"));
       }
     }
-
-    public async Task<Result<Customer>> GetById(int id, CancellationToken cancellationToken = default)
+    private async Task<Result<Customer>> GetBySpecificationAsync(ISpecificationBuilder<Customer> specification, int id, CancellationToken cancellationToken = default)
     {
       try
       {
-        var customer = await _customerRepository.GetByIdAsync(id, cancellationToken);
+        // Note: Using GetFirstAsync with specification instead of GetByIdAsync
+        var customer = await _customerRepository.GetFirstAsync(specification, cancellationToken);
+
         if (customer is not null)
           return Result<Customer>.Success(customer);
+
         return Result<Customer>.Failure(Error.NotFound($"Customer with id {id} not found"));
       }
       catch (Exception ex)
       {
         return Result<Customer>.Failure(Error.DatabaseReadError($"Error retrieving customer with id {id}: {ex.Message}"));
       }
-
     }
+    public async Task<Result<Customer>> GetById(int id, CancellationToken cancellationToken = default)
+    {
+      var specification = new SpecificationBuilder<Customer>(customer => customer.ID == id);
+      return await GetBySpecificationAsync(specification, id, cancellationToken);
+    }
+    public async Task<Result<Customer>> GetByIdWithRentals(int id, CancellationToken cancellationToken = default)
+    {
+      var specification = new SpecificationBuilder<Customer>(customer => customer.ID == id)
+          .AddIncludes(c => c.Rentals);
 
+      return await GetBySpecificationAsync(specification, id, cancellationToken);
+    }
   }
 }
