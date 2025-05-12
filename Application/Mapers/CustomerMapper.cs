@@ -1,4 +1,5 @@
 ﻿using Application.DTOs.Customer;
+using Application.Features.Customer.Commands.CreateCustomer;
 using Application.Interfaces.Mapers;
 using Core.Domain.Entities;
 using Core.Result;
@@ -7,7 +8,7 @@ namespace Application.Mapers
 {
   internal class CustomerMapper : ICustomerMapper
     {
-      public Result<Customer> ToEntity(CustomerCreateDto dto)
+      public Result<Customer> ToEntity(CreateCustomerCommand dto)
       {
         if (dto is null)
           return Result<Customer>.Failure(Error.NullReferenceError("CustomerCreateDto can not be null"));

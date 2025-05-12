@@ -4,7 +4,6 @@ using rental_platform.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 
 builder.Services.AddControllers();
 
@@ -14,7 +13,11 @@ builder.Services.AddHealthChecks();
 
 builder.Services.AddSwaggerGenWithAuth();
 builder.Services.AddAuth(builder.Configuration);
-
+builder.Services.AddLogging(builder =>
+{
+  builder.ClearProviders();
+  builder.AddConsole();
+});
 
 // // Used in Docker when HTTPS is enabled
 //builder.WebHost.ConfigureKestrel(options =>

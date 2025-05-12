@@ -1,5 +1,9 @@
-using Application.DTOs.Rental;
-using Application.Interfaces.Services;
+using Application.Features.Rentals.Commands.CancelReservation;
+using Application.Features.Rentals.Commands.CreateReservation;
+using Application.Features.Rentals.Commands.UpdateReservation;
+using Application.Features.Rentals.Queries.GetAllReservations;
+using Application.Features.Rentals.Queries.GetReservationById;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using rental_platform.Extensions;
@@ -11,27 +15,24 @@ namespace rental_platform.Controllers
   [Route("api/[controller]")]
   public class RentalController : ControllerBase
   {
-    public readonly IRentalService _rentalService;
-    public RentalController(IRentalService rentalService)
+    public readonly IMediator _mediator;
+    public RentalController(IMediator mediator)
     {
-      _rentalService = rentalService;
+      _mediator = mediator;
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] RentalCreateDto rentalCreateDTO)
+    public async Task<IActionResult> Create([FromBody] CreateReservationCommand command)
     {
-      var result = await _rentalService.CreateReservation(rentalCreateDTO);
-
-      if (result.IsSuccess)
-        return CreatedAtAction(nameof(Get), new { id = result.Value.Id }, result.Value);
+      var result = await _mediator.Send(command);
 
       return this.ToActionResult(result);
     }
 
     [HttpPut]
-    public async Task<IActionResult> Update([FromBody] RentalUpdateDto rentalUpdateDTO)
+    public async Task<IActionResult> Update([FromBody] UpdateReservationCommand command)
     {
-      var result = await _rentalService.UpdateReservation(rentalUpdateDTO);
+      var result = await _mediator.Send(command);
 
       return this.ToActionResult(result);
     }
@@ -39,7 +40,8 @@ namespace rental_platform.Controllers
     [HttpPut("{id}")]
     public async Task<IActionResult> Cancel(int id)
     {
-      var result = await _rentalService.CancelReservation(id);
+      var command = new CancelReservationCommand(id);
+      var result = await _mediator.Send(command);
 
       return this.ToActionResult(result);
     }
@@ -47,7 +49,8 @@ namespace rental_platform.Controllers
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-      var result = await _rentalService.GetAll();
+      var query = new GetAllReservationsQuery();
+      var result = await _mediator.Send(query);
 
       return this.ToActionResult(result);
     }
@@ -55,7 +58,8 @@ namespace rental_platform.Controllers
     [HttpGet("{id}")]
     public async Task<IActionResult> Get(int id)
     {
-      var result = await _rentalService.GetById(id);
+      var query = new GetReservationByIdQuery(id);
+      var result = await _mediator.Send(query);
 
       return this.ToActionResult(result);
     }

@@ -1,5 +1,10 @@
-using Application.DTOs.Customer;
-using Application.Interfaces.Services;
+using Application.Features.Customer.Commands.CreateCustomer;
+using Application.Features.Customer.Commands.DeleteCustomer;
+using Application.Features.Customer.Commands.UpdateCustomer;
+using Application.Features.Customer.Queries.GetAllCustomers;
+using Application.Features.Customer.Queries.GetCustomerById;
+using Application.Features.Customer.Queries.LoginCustomer;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using rental_platform.Extensions;
@@ -10,16 +15,16 @@ namespace rental_platform.Controllers
   [Route("api/[controller]")]
   public class CustomerController : ControllerBase
   {
-    private readonly ICustomerService _customerService;
-    public CustomerController(ICustomerService customerService)
+    private readonly IMediator _mediator;
+    public CustomerController(IMediator mediator)
     {
-      _customerService = customerService;
+      _mediator = mediator;
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CustomerCreateDto customerCreateDTO)
+    public async Task<IActionResult> Create([FromBody] CreateCustomerCommand command)
     {
-      var result = await _customerService.Create(customerCreateDTO);
+      var result = await _mediator.Send(command);
 
       return this.ToActionResult(result);
     }
@@ -27,16 +32,18 @@ namespace rental_platform.Controllers
     [HttpGet("login/{id}")]
     public async Task<IActionResult> Login(int id)
     {
-      var result = await _customerService.Login(id);
+      var querry = new LoginCustomerQuery(id);
+
+      var result = await _mediator.Send(querry);
 
       return this.ToActionResult(result);
     }
 
     [Authorize]
     [HttpPut]
-    public async Task<IActionResult> Update([FromBody] CustomerUpdateDto customerUpdateDTO)
+    public async Task<IActionResult> Update([FromBody] UpdateCustomerCommand command)
     {
-      var result = await _customerService.Update(customerUpdateDTO);
+      var result = await _mediator.Send(command);
 
       return this.ToActionResult(result);
     }
@@ -45,7 +52,8 @@ namespace rental_platform.Controllers
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
-      var result = await _customerService.Delete(id);
+      var command = new DeleteCustomerCommand(id);
+      var result = await _mediator.Send(command);
 
       return this.ToActionResult(result);
     }
@@ -54,7 +62,8 @@ namespace rental_platform.Controllers
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-      var result = await _customerService.GetAll();
+      var querry = new GetAllCustomersQuery();
+      var result = await _mediator.Send(querry);
 
       return this.ToActionResult(result);
     }
@@ -63,7 +72,8 @@ namespace rental_platform.Controllers
     [HttpGet("{id}")]
     public async Task<IActionResult> Get(int id)
     {
-      var result = await _customerService.GetById(id);
+      var querry = new GetCustomerByIdQuery(id);
+      var result = await _mediator.Send(querry);
 
       return this.ToActionResult(result);
     }
