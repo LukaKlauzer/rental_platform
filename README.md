@@ -1,3 +1,11 @@
+
+📅 12.05.2025
+🔧 Major Refactor:
+
+The master branch has been significantly refactored for clarity and maintainability.
+
+The Mediator_v2 branch now implements MediatR with a validation pipeline, based on the latest master refactor.
+
 ### Branch Overview
 
 - **master**  
