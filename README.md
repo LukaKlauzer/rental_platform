@@ -5,6 +5,7 @@
 • The `master` branch has been **significantly refactored** for improved clarity, structure, and maintainability.  
 • The `Mediator_v2` branch now includes **MediatR integration** with a **validation pipeline**, fully aligned with the updated `master` branch.
 
+---
 
 ### Branch Overview
 
